@@ -11,22 +11,37 @@ struct FeedbackEvent: Equatable {
 
 /// What speech cares about: the countdown itself is carried by the tone, so 6 s → 5 s is not a change.
 private enum Spoken: Equatable {
-    case clear, far, timed, unknown(UnknownReason)
+    case clear, far, unmeasured, timed, unknown(UnknownReason)
 
     init(_ state: DirectionState) {
         switch state {
         case .clear: self = .clear
-        case .approaching(nil): self = .far
-        case .approaching: self = .timed
+        case .approaching(.far): self = .far
+        case .approaching(.unmeasured): self = .unmeasured
+        case .approaching(.seconds): self = .timed
         case .unknown(let reason): self = .unknown(reason)
         }
     }
 }
 
+/// Timed → far is not spoken: a car hovering at the window edge would otherwise flip "far" / "about 19 seconds".
+private func isChange(from previous: DirectionState?, to current: DirectionState) -> Bool {
+    let from = previous.map(Spoken.init), to = Spoken(current)
+    return from != to && !(from == .timed && to == .far)
+}
+
+/// What `previous` becomes once `announce` has run: sides whose change was spoken take their new state;
+/// the rest keep what was last spoken, so an unspoken timed → far → timed stays silent.
+func announcedBaseline(previous: [Side: DirectionState], current: [Side: DirectionState]) -> [Side: DirectionState] {
+    var baseline = previous
+    for (side, state) in current where isChange(from: previous[side], to: state) { baseline[side] = state }
+    return baseline
+}
+
 /// One haptic and one sentence for whatever changed, or nil when nothing did.
 func announce(previous: [Side: DirectionState], current: [Side: DirectionState]) -> FeedbackEvent? {
     let changed = [Side.left, .right].compactMap { side -> (Side, DirectionState)? in
-        guard let now = current[side], previous[side].map(Spoken.init) != Spoken(now) else { return nil }
+        guard let now = current[side], isChange(from: previous[side], to: now) else { return nil }
         return (side, now)
     }
     guard !changed.isEmpty else { return nil }
@@ -70,8 +85,12 @@ func toneSettings(states: [Side: DirectionState], isLevel: Bool, tiltErrorDegree
         return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness, pan: 0)
     }
     let cars = states.compactMap { side, state -> (side: Side, seconds: Double)? in
-        guard case .approaching(let seconds) = state else { return nil }
-        return (side, min(Double(seconds ?? Int(Config.approachWindowSeconds)), Config.approachWindowSeconds))
+        guard case .approaching(let arrival) = state else { return nil }
+        switch arrival {
+        case .seconds(let s): return (side, min(Double(s), Config.approachWindowSeconds))
+        case .far: return (side, Config.approachWindowSeconds)
+        case .unmeasured: return (side, Config.approachWindowSeconds / 2) // distance unknown: mid pitch, not the "far" pitch
+        }
     }
     guard let nearest = cars.min(by: { $0.seconds < $1.seconds }) else { return ToneSettings(isOn: false, frequencyHz: 0, pan: 0) }
     let closeness = 1 - nearest.seconds / Config.approachWindowSeconds

@@ -73,7 +73,7 @@ func merge(whole: [Detection], tile: [Detection], tileRect: CGRect) -> [Detectio
     for t in tile {
         let touchesEdge = t.box.minX - tileRect.minX <= marginX || tileRect.maxX - t.box.maxX <= marginX
             || t.box.minY - tileRect.minY <= marginY || tileRect.maxY - t.box.maxY <= marginY
-        if let i = result.firstIndex(where: { iou($0.box, t.box) >= Config.mergeIoU }) {
+        if let i = result.firstIndex(where: { $0.label == t.label && iou($0.box, t.box) >= Config.mergeIoU }) {
             if !touchesEdge { result[i] = t }
         } else {
             result.append(t)
@@ -100,16 +100,16 @@ final class Detector {
         return merge(whole: found.whole, tile: found.tile, tileRect: tileRequest.regionOfInterest)
     }
 
-    /// Both requests' vehicles; tile boxes are mapped to whole-frame coordinates.
+    /// Both requests' vehicles and blockers; tile boxes are mapped to whole-frame coordinates.
     func detectSeparately(_ frame: Frame) throws -> (whole: [Detection], tile: [Detection]) {
         let tile = frameTileRect(frame)
         tileRequest.regionOfInterest = tile
         try VNImageRequestHandler(cvPixelBuffer: frame.pixelBuffer, orientation: frame.orientation)
             .perform([wholeRequest, tileRequest])
-        let tileBoxes = try vehicles(tileRequest.results).map {
+        let tileBoxes = try objects(tileRequest.results).map {
             Detection(box: mapFromTile($0.box, tile: tile), label: $0.label, confidence: $0.confidence)
         }
-        return (try vehicles(wholeRequest.results), tileBoxes)
+        return (try objects(wholeRequest.results), tileBoxes)
     }
 }
 
@@ -124,12 +124,13 @@ func frameTileRect(_ frame: Frame) -> CGRect {
 
 enum DetectError: Error { case unexpectedResults }
 
-/// Vehicle boxes from a request's results. Anything but object observations throws, so the frame goes stale
-/// instead of reading as "no cars".
-func vehicles(_ results: [VNObservation]?) throws -> [Detection] {
+/// Vehicle and blocker boxes from a request's results. Anything but object observations throws, so the frame
+/// goes stale instead of reading as "no cars".
+func objects(_ results: [VNObservation]?) throws -> [Detection] {
     guard let objects = results as? [VNRecognizedObjectObservation] else { throw DetectError.unexpectedResults }
     return objects.compactMap { o in
-        guard let top = o.labels.first, Config.vehicleLabels.contains(top.identifier),
+        guard let top = o.labels.first,
+              Config.vehicleLabels.contains(top.identifier) || Config.blockerLabels.contains(top.identifier),
               o.confidence >= Config.minDetectionConfidence else { return nil }
         return Detection(box: o.boundingBox, label: top.identifier, confidence: o.confidence)
     }

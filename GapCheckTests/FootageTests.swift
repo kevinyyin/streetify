@@ -6,7 +6,7 @@ import XCTest
 final class FootageTests: XCTestCase {
     func testScoreWarningAndFalseAlarm() {
         let timeline = stride(from: 0.0, through: 30.0, by: 0.1).map { t -> (t: Double, state: DirectionState) in
-            (t, t < 5 || t >= 18 ? .clear : .approaching(seconds: 4))
+            (t, t < 5 || t >= 18 ? .clear : .approaching(.seconds(4)))
         }
         let score = scoreFootage(timeline, passSeconds: [17])
         XCTAssertEqual(score.warningSeconds.count, 1)

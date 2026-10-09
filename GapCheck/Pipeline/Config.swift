@@ -17,6 +17,8 @@ enum Config {
 
     /// COCO classes that count as vehicles.
     static let vehicleLabels: Set<String> = ["car", "truck", "bus", "motorcycle", "bicycle"]
+    /// COCO classes that can hide the road (rule 5) but are never tracked as cars.
+    static let blockerLabels: Set<String> = ["person"]
     /// Detections below this confidence are ignored; lower means more detections.
     static let minDetectionConfidence: Float = 0.25
 

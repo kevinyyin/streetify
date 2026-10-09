@@ -8,10 +8,18 @@ enum UnknownReason: Equatable {
     case stale, notLevel, tooDark, tooBright, covered, viewBlocked
 }
 
+/// How soon an approaching car arrives, as far as can be told.
+enum Arrival: Equatable {
+    case seconds(Int)
+    /// Measured, but its best estimate is beyond the approach window.
+    case far
+    /// Too new to measure: no distance yet, and it may be close.
+    case unmeasured
+}
+
 enum DirectionState: Equatable {
     case clear
-    /// nil seconds = "far": seen, but no usable time yet.
-    case approaching(seconds: Int?)
+    case approaching(Arrival)
     case unknown(UnknownReason)
 }
 
@@ -21,6 +29,8 @@ struct FrameObservation {
     let isLevel: Bool
     let quality: ImageQuality
     let tile: CGRect
+    /// Non-vehicles (people) that hide the road; they count toward rule 5 but are never tracked as cars.
+    var blockerBoxes: [CGRect] = []
 }
 
 /// The ordered rules for one direction. Starts Unknown; every failure ends Unknown, never Clear.
@@ -63,13 +73,15 @@ final class Decider {
         let approaching = tracks.map { $0.estimate(atSeconds: o.timestampSeconds) }
             .filter { $0.isTooNew || ($0.lowSeconds ?? .infinity) < Config.approachWindowSeconds }
         if !approaching.isEmpty {
-            let soonest = approaching.compactMap(\.pointSeconds).filter { $0 < Config.approachWindowSeconds }.min()
-            return .approaching(seconds: soonest.map { Int($0.rounded()) })
+            if let soonest = approaching.compactMap(\.pointSeconds).filter({ $0 < Config.approachWindowSeconds }).min() {
+                return .approaching(.seconds(Int(soonest.rounded())))
+            }
+            return .approaching(approaching.contains(where: \.isTooNew) ? .unmeasured : .far)
         }
 
-        // Every remaining track is stationary or leaving.
-        let coveredArea = tracks.reduce(0.0) { sum, track in
-            let overlap = track.box.intersection(o.tile)
+        // Every remaining track is stationary or leaving; people hide the road too.
+        let coveredArea = (tracks.map(\.box) + o.blockerBoxes).reduce(0.0) { sum, box in
+            let overlap = box.intersection(o.tile)
             return overlap.isNull ? sum : sum + overlap.width * overlap.height
         }
         if coveredArea / (o.tile.width * o.tile.height) > Config.blockedFraction { return .unknown(.viewBlocked) }

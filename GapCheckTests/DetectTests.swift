@@ -61,6 +61,14 @@ final class DetectTests: XCTestCase {
         XCTAssertEqual(merge(whole: [whole], tile: [cut], tileRect: tile), [whole])
     }
 
+    /// A cyclist is a "person" box on top of a "bicycle" box; merging across labels could drop the vehicle.
+    func testMergeKeepsDifferentLabelsApart() {
+        let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
+        let bicycle = Detection(box: CGRect(x: 0.45, y: 0.45, width: 0.05, height: 0.05), label: "bicycle", confidence: 0.9)
+        let rider = Detection(box: CGRect(x: 0.451, y: 0.451, width: 0.048, height: 0.048), label: "person", confidence: 0.9)
+        XCTAssertEqual(merge(whole: [bicycle], tile: [rider], tileRect: tile).count, 2)
+    }
+
     func testMergeKeepsDisjointBoxes() {
         let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
         let a = car(CGRect(x: 0.05, y: 0.05, width: 0.05, height: 0.05))
@@ -70,9 +78,9 @@ final class DetectTests: XCTestCase {
 
     /// A model whose output isn't object observations must fail the frame (→ stale), not read as "no cars".
     func testUnexpectedResultsThrow() throws {
-        XCTAssertThrowsError(try vehicles([VNDetectedObjectObservation(boundingBox: .zero)]))
-        XCTAssertThrowsError(try vehicles(nil))
-        XCTAssertEqual(try vehicles([]), [])
+        XCTAssertThrowsError(try objects([VNDetectedObjectObservation(boundingBox: .zero)]))
+        XCTAssertThrowsError(try objects(nil))
+        XCTAssertEqual(try objects([]), [])
     }
 
     func testDetectRunsOnBlankFrame() throws {

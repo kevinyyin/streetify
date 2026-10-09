@@ -72,15 +72,34 @@ final class DecideTests: XCTestCase {
     }
 
     func testApproachingSeconds() {
-        guard case .approaching(let seconds?) = Decider().update(obs(1.5), tracks: [approachingTrack]) else {
+        guard case .approaching(.seconds(let seconds)) = Decider().update(obs(1.5), tracks: [approachingTrack]) else {
             return XCTFail("expected a timed approach")
         }
         XCTAssertTrue((8...9).contains(seconds), "\(seconds)")
     }
 
-    func testNewTrackIsApproachingFar() {
-        let new = makeTrack([(t: 1.5, h: 0.02)])
-        XCTAssertEqual(Decider().update(obs(1.5), tracks: [new]), .approaching(seconds: nil))
+    /// A track too new to measure has no distance yet: it may be close (after a rotation or an occlusion).
+    func testNewTrackIsApproachingUnmeasured() {
+        let new = makeTrack([(t: 1.5, h: 0.3)])
+        XCTAssertEqual(Decider().update(obs(1.5), tracks: [new]), .approaching(.unmeasured))
+    }
+
+    /// Measured, plausibly arriving within the window, but the point estimate is beyond it: "far".
+    func testMeasuredFarCarIsFar() throws {
+        let far = try XCTUnwrap((1...200).lazy.map { seed in
+            makeTrack(approachingHeights(tauAtEndSeconds: 30, heightAtEnd: 8 / 1920, noisePixels: 1.7, seed: UInt64(seed)))
+        }.first { track in
+            let e = track.estimate(atSeconds: 1.5)
+            return (e.pointSeconds ?? .infinity) >= Config.approachWindowSeconds && (e.lowSeconds ?? .infinity) < Config.approachWindowSeconds
+        })
+        XCTAssertEqual(Decider().update(obs(1.5), tracks: [far]), .approaching(.far))
+    }
+
+    /// People are not tracked as cars, but a person filling the tile hides the road just like a parked car.
+    func testPersonBlockingTileIsViewBlocked() {
+        var o = obs(1.5)
+        o.blockerBoxes = [CGRect(x: tile.minX, y: tile.minY, width: tile.width * 0.4, height: tile.height)]
+        XCTAssertEqual(Decider().update(o, tracks: []), .unknown(.viewBlocked))
     }
 
     func testViewBlocked() {

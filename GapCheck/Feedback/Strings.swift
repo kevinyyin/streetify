@@ -5,8 +5,9 @@ enum Strings {
         let camera = side == .left ? "Left camera" : "Right camera"
         switch state {
         case .clear: return "No cars seen \(name)"
-        case .approaching(let seconds?): return "Car \(name), about \(seconds) \(seconds == 1 ? "second" : "seconds")"
-        case .approaching(nil): return "Car \(name), far"
+        case .approaching(.seconds(let seconds)): return "Car \(name), about \(seconds) \(seconds == 1 ? "second" : "seconds")"
+        case .approaching(.far): return "Car \(name), far"
+        case .approaching(.unmeasured): return "Car \(name)"
         case .unknown(.stale): return "\(camera) stopped"
         case .unknown(.notLevel): return "Hold the phone level"
         case .unknown(.tooDark): return "\(camera) too dark"

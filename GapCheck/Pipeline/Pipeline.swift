@@ -42,10 +42,12 @@ final class Pipeline {
 
     private func process(_ frame: Frame) {
         // A frame whose detection throws never reaches Decide, so the watchdog or the next gap reports stale.
-        guard let detections = try? detector.detect(frame) else { return }
+        guard let found = try? detector.detect(frame) else { return }
+        let detections = found.filter { Config.vehicleLabels.contains($0.label) }
         let tracks = tracker.update(detections, atSeconds: frame.timestampSeconds, orientation: frame.orientation)
         let observation = FrameObservation(timestampSeconds: frame.timestampSeconds, isLevel: frame.isLevel,
-                                           quality: imageQuality(frame.pixelBuffer), tile: frameTileRect(frame))
+                                           quality: imageQuality(frame.pixelBuffer), tile: frameTileRect(frame),
+                                           blockerBoxes: found.filter { Config.blockerLabels.contains($0.label) }.map(\.box))
         let state = decider.update(observation, tracks: tracks)
         onUpdate?(PipelineUpdate(side: side, frame: frame, detections: detections, tracks: tracks, state: state))
     }
