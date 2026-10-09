@@ -79,26 +79,11 @@ func baselineAfterStartup(_ lastAnnounced: [Side: DirectionState]) -> [Side: Dir
 struct ToneSettings: Equatable {
     let isOn: Bool
     let frequencyHz: Double
-    /// -1 left ... 1 right.
-    let pan: Float
 }
 
-/// Aiming until level (pitch rises toward level), then a tone toward the nearest car (pitch rises as it nears), else silent.
-func toneSettings(states: [Side: DirectionState], isLevel: Bool, tiltErrorDegrees: Double) -> ToneSettings {
-    if !isLevel {
-        let closeness = 1 - min(tiltErrorDegrees, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
-        return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness, pan: 0)
-    }
-    let cars = states.compactMap { side, state -> (side: Side, seconds: Double)? in
-        guard case .approaching(let arrival) = state else { return nil }
-        switch arrival {
-        case .seconds(let s): return (side, min(Double(s), Config.approachWindowSeconds))
-        case .far: return (side, Config.approachWindowSeconds)
-        case .unmeasured: return (side, Config.approachWindowSeconds / 2) // distance unknown: mid pitch, not the "far" pitch
-        }
-    }
-    guard let nearest = cars.min(by: { $0.seconds < $1.seconds }) else { return ToneSettings(isOn: false, frequencyHz: 0, pan: 0) }
-    let closeness = 1 - nearest.seconds / Config.approachWindowSeconds
-    return ToneSettings(isOn: true, frequencyHz: Config.approachMinHz + (Config.approachMaxHz - Config.approachMinHz) * closeness,
-                        pan: nearest.side == .left ? -1 : 1)
+/// The tone means only "the phone isn't level": on while tilted, pitch rising toward level; silent when level.
+func toneSettings(isLevel: Bool, tiltErrorDegrees: Double) -> ToneSettings {
+    guard !isLevel else { return ToneSettings(isOn: false, frequencyHz: 0) }
+    let closeness = 1 - min(tiltErrorDegrees, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
+    return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness)
 }
