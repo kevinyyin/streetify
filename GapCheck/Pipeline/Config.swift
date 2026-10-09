@@ -63,6 +63,8 @@ enum Config {
     static let toneAmplitude: Float = 0.25
     /// After this long, a side that never produced a state is announced as stopped.
     static let startupGraceSeconds = 3.0
+    /// A car's time is spoken once more when it drops to this many seconds or fewer.
+    static let closeWarningSeconds = 5.0
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 

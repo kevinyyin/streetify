@@ -9,25 +9,28 @@ struct FeedbackEvent: Equatable {
     let text: String
 }
 
-/// What speech cares about: the countdown itself is carried by the tone, so 6 s → 5 s is not a change.
+/// What speech cares about. There is no live countdown: a car's time is spoken when first measured and once more
+/// when it gets close (`Config.closeWarningSeconds`).
 private enum Spoken: Equatable {
-    case clear, far, unmeasured, timed, unknown(UnknownReason)
+    case clear, far, unmeasured, timed, close, unknown(UnknownReason)
 
     init(_ state: DirectionState) {
         switch state {
         case .clear: self = .clear
         case .approaching(.far): self = .far
         case .approaching(.unmeasured): self = .unmeasured
-        case .approaching(.seconds): self = .timed
+        case .approaching(.seconds(let s)): self = Double(s) <= Config.closeWarningSeconds ? .close : .timed
         case .unknown(let reason): self = .unknown(reason)
         }
     }
 }
 
-/// Timed → far is not spoken: a car hovering at the window edge would otherwise flip "far" / "about 19 seconds".
+/// Moving away from the car (close → timed, timed → far, close → far) is silent, so an estimate wobbling around
+/// a boundary doesn't repeat itself.
 private func isChange(from previous: DirectionState?, to current: DirectionState) -> Bool {
     let from = previous.map(Spoken.init), to = Spoken(current)
-    return from != to && !(from == .timed && to == .far)
+    let silent: [(Spoken, Spoken)] = [(.timed, .far), (.close, .timed), (.close, .far)]
+    return from != to && !silent.contains { $0.0 == from && $0.1 == to }
 }
 
 /// What `previous` becomes once `announce` has run: sides whose change was spoken take their new state;
@@ -40,8 +43,9 @@ func announcedBaseline(previous: [Side: DirectionState], current: [Side: Directi
 
 /// One haptic and one sentence for whatever changed, or nil when nothing did.
 func announce(previous: [Side: DirectionState], current: [Side: DirectionState]) -> FeedbackEvent? {
+    // Not level is the tone's job: never spoken (the baseline still records it, so leveling out is announced).
     let changed = [Side.left, .right].compactMap { side -> (Side, DirectionState)? in
-        guard let now = current[side], isChange(from: previous[side], to: now) else { return nil }
+        guard let now = current[side], now != .unknown(.notLevel), isChange(from: previous[side], to: now) else { return nil }
         return (side, now)
     }
     guard !changed.isEmpty else { return nil }
@@ -49,7 +53,8 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
     // Approaching and Unknown override Clear: "No cars seen left" must not replace a warning about the right.
     if changed.contains(where: { $0.1 == .clear }) {
         spoken += [Side.left, .right].compactMap { side in
-            guard !changed.contains(where: { $0.0 == side }), let now = current[side], now != .clear else { return nil }
+            guard !changed.contains(where: { $0.0 == side }), let now = current[side], now != .clear, now != .unknown(.notLevel)
+            else { return nil }
             return (side, now)
         }
     }
