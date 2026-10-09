@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 140 140">
+  <!-- GapCheck app icon source. Full-bleed: iOS applies the rounded mask. Render to 1024x1024 PNG. -->
+  <rect width="140" height="140" fill="#1F5BD6"/>
+  <path d="M14 84 L20 69 Q22 65 27 65 L47 65 Q52 65 55 69 L62 78 L64 84 Z" fill="#fff"/>
+  <rect x="14" y="82" width="50" height="11" rx="3" fill="#fff"/>
+  <circle cx="26" cy="94" r="6.5" fill="#1F5BD6" stroke="#fff" stroke-width="3.5"/>
+  <circle cx="52" cy="94" r="6.5" fill="#1F5BD6" stroke="#fff" stroke-width="3.5"/>
+  <path d="M82 64 A18 18 0 0 0 82 92" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M78 55 A30 30 0 0 0 78 101" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.6"/>
+  <circle cx="108" cy="46" r="8" fill="#fff"/>
+  <path d="M107 56 L104 80" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M104 80 L97 100" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M104 80 L112 99" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M106 62 L95 72" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  <path d="M95 72 L89 102" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+</svg>
