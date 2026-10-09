@@ -36,6 +36,7 @@
 - [x] Strings.swift (banned-words test deferred by decision, 2026-10-08)
 - [x] Haptics, tone, speech (not verified on device)
 - [x] State-change test
+- [x] Feedback redesign: one job per signal (2026-10-09) (not verified on device)
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
