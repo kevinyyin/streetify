@@ -1,6 +1,6 @@
 import AVFoundation
 
-/// One sine oscillator whose pitch, pan and on/off follow `ToneSettings`.
+/// One sine oscillator whose pitch and on/off follow `ToneSettings`.
 final class Tone {
     let engine = AVAudioEngine()
     private var node: AVAudioSourceNode!
@@ -33,6 +33,5 @@ final class Tone {
         if !engine.isRunning { try? engine.start() }
         frequencyHz = settings.frequencyHz
         isOn = settings.isOn
-        node.pan = settings.pan
     }
 }

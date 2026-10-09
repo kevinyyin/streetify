@@ -111,7 +111,7 @@ final class AppModel {
     }
 
     private func updateTone() {
-        tone.apply(toneSettings(states: panes.mapValues(\.state), isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees))
+        tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees))
     }
 
     /// The two cameras change state independently; wait a moment so changes landing together are one sentence.

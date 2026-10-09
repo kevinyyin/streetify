@@ -52,13 +52,10 @@ enum Config {
     /// Stationary vehicles covering more than this fraction of the tile block the view.
     static let blockedFraction = 0.3
 
-    /// Aiming tone (until level): low pitch at this tilt or more, rising to aimMaxHz at level.
+    /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
     static let aimMinHz = 200.0
     static let aimMaxHz = 500.0
-    /// Approaching tone: approachMinHz at the window's edge or "far", rising to approachMaxHz at arrival.
-    static let approachMinHz = 600.0
-    static let approachMaxHz = 1200.0
     /// Tone loudness, 0...1 of full scale.
     static let toneAmplitude: Float = 0.25
     /// After this long, a side that never produced a state is announced as stopped.

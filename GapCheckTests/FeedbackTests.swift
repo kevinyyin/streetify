@@ -107,34 +107,19 @@ final class FeedbackTests: XCTestCase {
     func testToneRestartsWhenEngineStops() {
         let tone = Tone()
         tone.engine.stop()
-        tone.apply(ToneSettings(isOn: true, frequencyHz: 600, pan: 0))
+        tone.apply(ToneSettings(isOn: true, frequencyHz: 300))
         XCTAssertTrue(tone.engine.isRunning)
     }
 
-    func testTonePansToNearestCar() {
-        let t = toneSettings(states: [.left: .approaching(.seconds(12)), .right: .approaching(.seconds(4))],
-                             isLevel: true, tiltErrorDegrees: 0)
-        XCTAssertTrue(t.isOn)
-        XCTAssertEqual(t.pan, 1)
-        XCTAssertEqual(t.frequencyHz, Config.approachMinHz + (Config.approachMaxHz - Config.approachMinHz) * (1 - 4.0 / 20), accuracy: 0.001)
-    }
-
-    func testUnmeasuredCarGetsMidPitch() {
-        let t = toneSettings(states: [.left: .approaching(.unmeasured), .right: .clear], isLevel: true, tiltErrorDegrees: 0)
-        XCTAssertEqual(t.frequencyHz, (Config.approachMinHz + Config.approachMaxHz) / 2, accuracy: 0.001)
-        XCTAssertEqual(t.pan, -1)
-    }
-
-    func testToneSilentWhenClear() {
-        XCTAssertFalse(toneSettings(states: [.left: .clear, .right: .clear], isLevel: true, tiltErrorDegrees: 0).isOn)
+    /// The tone only means "not level": silent whenever the phone is level, cars or not.
+    func testToneOffWhenLevel() {
+        XCTAssertFalse(toneSettings(isLevel: true, tiltErrorDegrees: 0).isOn)
     }
 
     func testAimingToneRisesTowardLevel() {
-        let notLevel: [Side: DirectionState] = [.left: .unknown(.notLevel), .right: .unknown(.notLevel)]
-        let far = toneSettings(states: notLevel, isLevel: false, tiltErrorDegrees: 40)
-        let near = toneSettings(states: notLevel, isLevel: false, tiltErrorDegrees: 12)
+        let far = toneSettings(isLevel: false, tiltErrorDegrees: 40)
+        let near = toneSettings(isLevel: false, tiltErrorDegrees: 12)
         XCTAssertTrue(far.isOn)
-        XCTAssertEqual(far.pan, 0)
         XCTAssertGreaterThan(near.frequencyHz, far.frequencyHz)
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
     }
