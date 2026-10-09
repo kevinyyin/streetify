@@ -44,9 +44,11 @@ func imageQuality(_ buffer: CVPixelBuffer) -> ImageQuality {
 }
 
 /// The centered `Config.tileSizePixels` square where far cars appear, Vision-normalized.
+/// Clamped to the image: Vision throws on a region of interest outside it, which would make every frame stale.
 func tileRect(orientedWidthPixels w: Double, orientedHeightPixels h: Double) -> CGRect {
     let tile = Double(Config.tileSizePixels)
-    return CGRect(x: (1 - tile / w) / 2, y: (1 - tile / h) / 2, width: tile / w, height: tile / h)
+    let width = min(1, tile / w), height = min(1, tile / h)
+    return CGRect(x: (1 - width) / 2, y: (1 - height) / 2, width: width, height: height)
 }
 
 /// A box normalized to the tile, back in whole-frame coordinates.

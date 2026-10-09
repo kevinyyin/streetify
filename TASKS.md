@@ -26,7 +26,7 @@
 - [x] Center tile request, merged boxes
 - [x] Tracker and time to arrival
 - [x] Decide rules and Config.swift
-- [ ] Unit tests per rule; one clip test
+- [ ] Unit tests per rule; one clip test (rule tests done; clip test written, skips until GapCheckTests/clip.mov exists)
 - [ ] Second camera via AVCaptureMultiCamSession; `frontCameraFacesLeft` (default true)
 
 ## Gate (hour 18)
@@ -48,3 +48,4 @@
 - [ ] Walk-signal mode with turning-car warning
 
 ## Blockers
+- Need `GapCheckTests/clip.mov`: a few seconds, phone level, one car approaching (for ClipTests).

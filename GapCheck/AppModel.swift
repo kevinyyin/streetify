@@ -9,6 +9,9 @@ final class AppModel {
     struct Pane {
         var image: CGImage?
         var detections: [Detection] = []
+        var tracks: [Track] = []
+        var timestampSeconds = 0.0
+        var state: DirectionState = .unknown(.stale)
     }
 
     var panes: [Side: Pane] = [.left: Pane(), .right: Pane()]
@@ -56,7 +59,10 @@ final class AppModel {
         DispatchQueue.main.async {
             var pane = self.panes[update.side] ?? Pane()
             if let image { pane.image = image }
+            if let t = update.frame?.timestampSeconds { pane.timestampSeconds = t }
             pane.detections = update.detections
+            pane.tracks = update.tracks
+            pane.state = update.state
             self.panes[update.side] = pane
         }
     }
