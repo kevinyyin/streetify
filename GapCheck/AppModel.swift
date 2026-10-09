@@ -121,8 +121,9 @@ final class AppModel {
         DispatchQueue.main.asyncAfter(deadline: .now() + Config.announceCoalesceSeconds) {
             self.isAnnouncementScheduled = false
             let current = self.panes.mapValues(\.state)
-            defer { self.lastAnnounced = current }
-            guard let event = announce(previous: self.lastAnnounced, current: current) else { return }
+            let previous = self.lastAnnounced
+            self.lastAnnounced = announcedBaseline(previous: previous, current: current)
+            guard let event = announce(previous: previous, current: current) else { return }
             self.haptics.play(event.haptic)
             self.speech.say(event.text)
         }
