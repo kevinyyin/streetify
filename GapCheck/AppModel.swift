@@ -53,7 +53,7 @@ final class AppModel {
 
     /// Says the current status of both directions again (the screen's tap / VoiceOver action).
     func speakStatus() {
-        speech.say(Strings.status(panes.mapValues(\.state)))
+        speech.say([Utterance(side: nil, text: Strings.status(panes.mapValues(\.state)), priority: .car)])
     }
 
     func replay(_ url: URL, on side: Side) {
@@ -108,6 +108,7 @@ final class AppModel {
     }
 
     private func markSilentSidesStale() {
+        speech.poll()
         for side in staleSides(lastUpdateSeconds: lastUpdateSeconds, nowSeconds: CACurrentMediaTime())
         where panes[side]?.state != .unknown(.stale) {
             panes[side]?.state = .unknown(.stale)
@@ -131,7 +132,7 @@ final class AppModel {
             self.lastAnnounced = announcedBaseline(previous: previous, current: current)
             guard let event = announce(previous: previous, current: current) else { return }
             self.haptics.play(event.haptic)
-            self.speech.say(event.text)
+            self.speech.say(event.utterances)
         }
     }
 }

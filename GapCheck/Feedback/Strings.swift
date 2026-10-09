@@ -1,19 +1,18 @@
 /// Every user-facing sentence. Report only what is seen: never "safe", "go", "cross now", "clear to cross", "all clear".
 enum Strings {
     static func sentence(_ side: Side, _ state: DirectionState) -> String {
-        let name = side == .left ? "left" : "right"
-        let camera = side == .left ? "Left camera" : "Right camera"
+        let name = side == .left ? "Left" : "Right" // side first, so the direction is heard before the news
         switch state {
-        case .clear: return "No cars seen \(name)"
-        case .approaching(.seconds(let seconds)): return "Car \(name), about \(seconds) \(seconds == 1 ? "second" : "seconds")"
-        case .approaching(.far): return "Car \(name), far"
-        case .approaching(.unmeasured): return "Car \(name)"
-        case .unknown(.stale): return "\(camera) stopped"
+        case .clear: return "\(name): no cars"
+        case .approaching(.seconds(let seconds)): return "\(name): car, \(seconds) \(seconds == 1 ? "second" : "seconds")"
+        case .approaching(.far): return "\(name): car, far"
+        case .approaching(.unmeasured): return "\(name): car"
+        case .unknown(.stale): return "\(name): camera stopped"
         case .unknown(.notLevel): return "Hold the phone level"
-        case .unknown(.tooDark): return "\(camera) too dark"
-        case .unknown(.tooBright): return "\(camera) too bright"
-        case .unknown(.covered): return "\(camera) covered"
-        case .unknown(.viewBlocked): return side == .left ? "Left view blocked" : "Right view blocked"
+        case .unknown(.tooDark): return "\(name): too dark"
+        case .unknown(.tooBright): return "\(name): too bright"
+        case .unknown(.covered): return "\(name): camera covered"
+        case .unknown(.viewBlocked): return "\(name): blocked"
         }
     }
 
