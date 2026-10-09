@@ -23,7 +23,7 @@
 - [x] Debug overlay with feed and boxes (not verified on device)
 
 ## Phase 2: trustworthy, then both directions (hours 8 to 18)
-- [ ] Center tile request, merged boxes
+- [x] Center tile request, merged boxes
 - [ ] Tracker and time to arrival
 - [ ] Decide rules and Config.swift
 - [ ] Unit tests per rule; one clip test
