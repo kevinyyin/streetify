@@ -27,7 +27,7 @@
 - [x] Tracker and time to arrival
 - [x] Decide rules and Config.swift
 - [ ] Unit tests per rule; one clip test (rule tests done; clip test written, skips until GapCheckTests/clip.mov exists)
-- [ ] Second camera via AVCaptureMultiCamSession; `frontCameraFacesLeft` (default true)
+- [x] Second camera via AVCaptureMultiCamSession; `frontCameraFacesLeft` (default true) (not verified on device)
 
 ## Gate (hour 18)
 - [ ] Both directions work live and on replay. Stretch work only after this.
