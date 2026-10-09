@@ -2,10 +2,15 @@ import SwiftUI
 
 @main
 struct GapCheckApp: App {
+    @State private var model = AppModel()
+
     var body: some Scene {
         WindowGroup {
-            Text("GapCheck")
-                .accessibilityLabel("GapCheck")
+            ContentView(model: model)
+                .onAppear {
+                    UIApplication.shared.isIdleTimerDisabled = true // a locked screen stops the cameras
+                    model.start()
+                }
         }
     }
 }
