@@ -1,0 +1,72 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildAndRun"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "ff609c85354021be9cc56e04ba8566159e072015af42aab59df7abe66133f68a"
+    },
+    {
+      "guid" : "ff609c85354021be9cc56e04ba856615c9d5495cc88e08ad6b6c317b5f22db0e"
+    }
+  ],
+  "containerPath" : "/Users/nathantien/Documents/GitHub/streetify/GapCheck.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "arm64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "hostTargetedPlatform" : null,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator27.0",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "arm64"
+      ],
+      "targetArchitecture" : "arm64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Products",
+      "derivedDataPath" : "/Users/nathantien/Documents/GitHub/streetify/build",
+      "indexDataStoreFolderPath" : "/Users/nathantien/Documents/GitHub/streetify/build/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/nathantien/Documents/GitHub/streetify/build/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ASSETCATALOG_FILTER_FOR_DEVICE_MODEL" : "iPhone19,2",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_OS_VERSION" : "27.0",
+          "ASSETCATALOG_FILTER_FOR_THINNING_DEVICE_CONFIGURATION" : "iPhone19,2",
+          "BUILD_ACTIVE_RESOURCES_ONLY" : "YES",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "TARGET_DEVICE_IDENTIFIER" : "346C54D6-7738-4482-8F73-3209D964F9AF",
+          "TARGET_DEVICE_MODEL" : "iPhone19,2",
+          "TARGET_DEVICE_OS_VERSION" : "27.0",
+          "TARGET_DEVICE_PLATFORM_NAME" : "iphonesimulator"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "test",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

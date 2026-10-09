@@ -64,9 +64,12 @@ struct ContentView: View {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .scaledToFit()
-                        .overlay { Canvas { ctx, size in drawTracks(p.tracks, atSeconds: p.timestampSeconds, in: ctx, size: size) } }
+                        .overlay { Canvas { ctx, size in drawTracks(p.tracks, masks: p.masks, redIds: p.redTrackIds, atSeconds: p.timestampSeconds, in: ctx, size: size) } }
                 } else {
-                    Text("No feed")
+                    Text(showsReplayControls(arguments: ProcessInfo.processInfo.arguments)
+                         ? "No feed. Tap Replay \(side == .left ? "left" : "right")… to load a clip." : "No feed")
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
                         .foregroundStyle(.gray)
                         .frame(maxWidth: .infinity, minHeight: 120)
                         .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 8))
@@ -103,18 +106,37 @@ struct ContentView: View {
         .accessibilityLabel("Replay \(name) clip")
     }
 
-    /// Each track's box, id and time to arrival ("new" while too new to measure, "-" when not closing).
-    private func drawTracks(_ tracks: [Track], atSeconds t: Double, in ctx: GraphicsContext, size: CGSize) {
-        for track in tracks {
-            // Vision boxes have their origin bottom-left.
-            let rect = CGRect(x: track.box.minX * size.width, y: (1 - track.box.maxY) * size.height,
-                              width: track.box.width * size.width, height: track.box.height * size.height)
-            ctx.stroke(Path(rect), with: .color(.yellow), lineWidth: 2)
-            let e = track.estimate(atSeconds: t)
-            let time = e.isTooNew ? "new" : e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "-"
-            ctx.draw(Text("\(track.id)  \(time)").font(.caption).foregroundStyle(.yellow),
-                     at: CGPoint(x: rect.minX, y: rect.minY - 2), anchor: .bottomLeading)
+    /// Each car's outline tinted red (close, or in a close line of cars), yellow (facing us) or green (driving away), with its id
+    /// and time to arrival ("new" while too new to measure, "-" when not closing). A car with no outline yet gets a box.
+    /// Outlines matched to no car (people, cars not tracked yet) are drawn faint gray.
+    private func drawTracks(_ tracks: [Track], masks: [SegmentMask], redIds: Set<Int>, atSeconds t: Double, in ctx: GraphicsContext, size: CGSize) {
+        // Vision boxes have their origin bottom-left.
+        func rect(_ box: CGRect) -> CGRect {
+            CGRect(x: box.minX * size.width, y: (1 - box.maxY) * size.height, width: box.width * size.width, height: box.height * size.height)
         }
+        func fill(_ mask: SegmentMask, _ color: Color, opacity: Double) {
+            var layer = ctx
+            layer.opacity = opacity
+            layer.addFilter(.colorMultiply(color))
+            layer.draw(Image(decorative: mask.image, scale: 1), in: rect(mask.box))
+        }
+        var unused = Set(masks.indices)
+        for track in tracks {
+            let e = track.estimate(atSeconds: t)
+            let color = highlight(track, isRed: redIds.contains(track.id)).color
+            let mask = unused.filter { iou(masks[$0].box, track.box) >= 0.3 }.max { iou(masks[$0].box, track.box) < iou(masks[$1].box, track.box) }
+            if let mask {
+                unused.remove(mask)
+                fill(masks[mask], color, opacity: 0.55)
+            } else {
+                ctx.stroke(Path(rect(track.box)), with: .color(color), lineWidth: 2)
+            }
+            let time = e.isTooNew ? "new" : e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "-"
+            let r = rect(track.box)
+            ctx.draw(Text("\(track.id)  \(time)").font(.caption.bold()).foregroundStyle(color),
+                     at: CGPoint(x: r.minX, y: r.minY - 2), anchor: .bottomLeading)
+        }
+        for i in unused { fill(masks[i], .gray, opacity: 0.35) }
     }
 }
 

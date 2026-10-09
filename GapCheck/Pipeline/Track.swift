@@ -1,6 +1,9 @@
 import CoreGraphics
 import ImageIO
 
+/// Which way a car is going, for the screen only.
+enum Travel { case toward, away, unclear }
+
 /// When a track's car arrives. A nil time means it isn't getting closer.
 struct ArrivalEstimate: Equatable {
     let isTooNew: Bool
@@ -15,6 +18,36 @@ struct Track {
     let firstSeenSeconds: Double
     var lastSeenSeconds: Double
     var heights: [(t: Double, h: Double)]
+    /// Boxes over `Config.directionWindowSeconds`, for the screen's colors only. Decide never reads them.
+    var directionBoxes: [(t: Double, box: CGRect)] = []
+
+    /// Which way the car is going over the longer direction window: surely (even at the confidence bound) and at least
+    /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Display only.
+    var travel: Travel {
+        let s = directionBoxes.map { (t: $0.t, h: Double($0.box.height)) }
+        let n = Double(s.count)
+        guard let first = s.first, let last = s.last, last.t - first.t >= Config.historySeconds, s.count >= 5 else { return .unclear }
+        let tm = s.reduce(0) { $0 + $1.t } / n, hm = s.reduce(0) { $0 + $1.h } / n
+        let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
+        guard stt > 0, hm > 0 else { return .unclear }
+        let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
+        let residualSquares = s.reduce(0) { sum, p in let e = p.h - hm - slope * (p.t - tm); return sum + e * e }
+        let margin = Config.tauConfidenceSigmas * (residualSquares / (n - 2)).squareRoot() / stt.squareRoot()
+        if slope + margin < 0 && slope / hm < -Config.awayMinShrinkPerSecond { return .away }
+        if slope - margin > 0 && slope / hm > Config.awayMinShrinkPerSecond { return .toward }
+        return .unclear
+    }
+
+    var isDrivingAway: Bool { travel == .away }
+
+    /// At a standstill: over at least `Config.historySeconds`, neither growing nor shrinking for sure, and its center
+    /// moved less than `Config.stillMaxBoxWidthsPerSecond` box widths per second. Display only.
+    var isStill: Bool {
+        guard let first = directionBoxes.first, let last = directionBoxes.last, last.t - first.t >= Config.historySeconds,
+              travel == .unclear else { return false }
+        let moved = hypot(last.box.midX - first.box.midX, last.box.midY - first.box.midY) / max(last.box.width, 1e-6)
+        return moved / (last.t - first.t) < Config.stillMaxBoxWidthsPerSecond
+    }
 
     /// Time to arrival = height / growth per second, from a least-squares line over the last `Config.historySeconds`.
     func estimate(atSeconds now: Double) -> ArrivalEstimate {
@@ -71,10 +104,13 @@ final class Tracker {
             tracks[i].lastSeenSeconds = t
             tracks[i].heights.append((t, box.height))
             tracks[i].heights.removeAll { $0.t < t - Config.historySeconds }
+            tracks[i].directionBoxes.append((t, box))
+            tracks[i].directionBoxes.removeAll { $0.t < t - Config.directionWindowSeconds }
         }
         for j in freeDetections.sorted() {
             let box = detections[j].box
-            tracks.append(Track(id: nextId, box: box, firstSeenSeconds: t, lastSeenSeconds: t, heights: [(t, box.height)]))
+            tracks.append(Track(id: nextId, box: box, firstSeenSeconds: t, lastSeenSeconds: t, heights: [(t, box.height)],
+                                directionBoxes: [(t, box)]))
             nextId += 1
         }
         tracks.removeAll { t - $0.lastSeenSeconds > Config.trackLostSeconds }

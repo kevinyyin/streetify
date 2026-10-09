@@ -168,7 +168,8 @@ final class FeedbackTests: XCTestCase {
     }
 }
 
-/// One sentence at a time: a car is never cut off, more urgent news cuts in, the rest waits (newest per side).
+/// One sentence at a time: a car is never cut off, more urgent news cuts in, the rest waits (newest per side) and is
+/// said as it is when its turn comes.
 final class SpeechQueueTests: XCTestCase {
     private let carRight = utterance(.right, .approaching(.seconds(6)))
     private let blockedLeft = utterance(.left, .unknown(.viewBlocked))
@@ -196,13 +197,32 @@ final class SpeechQueueTests: XCTestCase {
         XCTAssertNil(q.finished(text: "Left: no cars", atSeconds: 2.5))
     }
 
-    func testSameSideNewsInterrupts() {
+    /// Newer news about the side being spoken waits instead of cutting in, so a stream of cars is not a stream of
+    /// cut-off sentences.
+    func testSameSideNewsWaits() {
         var q = SpeechQueue()
         let car9 = utterance(.right, .approaching(.seconds(9)))
         let car5 = utterance(.right, .approaching(.seconds(5)))
         XCTAssertEqual(q.add([car9], atSeconds: 0), car9)
-        XCTAssertEqual(q.add([car5], atSeconds: 0.5), car5)
-        XCTAssertNil(q.finished(text: car5.text, atSeconds: 1.5))
+        XCTAssertNil(q.add([car5], atSeconds: 0.5))
+        XCTAssertEqual(q.finished(text: car9.text, atSeconds: 1.5), car5)
+    }
+
+    /// A sentence that waited is said as its side is now: cars that already passed are dropped.
+    func testWaitingCarIsRefreshedWhenItsTurnComes() {
+        var q = SpeechQueue()
+        _ = q.add([carRight], atSeconds: 0)
+        XCTAssertNil(q.add([utterance(.right, .approaching(.seconds(3)))], atSeconds: 0.5))
+        let next = q.finished(text: carRight.text, atSeconds: 1.5, current: [.right: .clear])
+        XCTAssertEqual(next?.text, "Right: no cars")
+    }
+
+    /// Nothing is said when the refreshed sentence is what the user just heard.
+    func testWaitingSentenceThatIsNoLongerNewsIsDropped() {
+        var q = SpeechQueue()
+        _ = q.add([carRight], atSeconds: 0, current: [.right: .approaching(.seconds(6))])
+        XCTAssertNil(q.add([utterance(.right, .clear)], atSeconds: 0.5))
+        XCTAssertNil(q.finished(text: carRight.text, atSeconds: 1.5, current: [.right: .approaching(.seconds(6))]))
     }
 
     /// A late "finished" for a sentence that was cut off must not end the one now playing.
@@ -230,5 +250,42 @@ final class SpeechQueueTests: XCTestCase {
         _ = q.add([carRight], atSeconds: 0)
         XCTAssertNil(q.add([blockedLeft], atSeconds: 1))
         XCTAssertEqual(q.add([], atSeconds: Config.maxUtteranceSeconds + 0.1), blockedLeft)
+    }
+}
+
+/// Screen tints: red sticks to a close car until it leaves or stands still, and spreads to the line behind it.
+final class HighlightTests: XCTestCase {
+    /// Tall, close, and surely coming.
+    private func close(id: Int = 1) -> Track {
+        var t = makeTrack(approachingHeights(tauAtEndSeconds: 5, heightAtEnd: 0.2), id: id)
+        t.directionBoxes = trackWithDirection(heightAt: { 0.1 * (1 + 0.25 * $0) }).directionBoxes
+        return t
+    }
+    /// Smaller, surely coming, far off.
+    private let comingBehind = trackWithDirection(heightAt: { 0.03 * (1 + 0.1 * $0) }, id: 2)
+    private let parkedBehind = trackWithDirection(heightAt: { _ in 0.05 }, id: 3)
+
+    func testCloseCarIsRed() {
+        XCTAssertEqual(redTrackIds([close()], atSeconds: 4, wasRed: []), [1])
+    }
+
+    func testCarComingBehindARedCarIsRedButAParkedOneIsNot() {
+        XCTAssertEqual(redTrackIds([comingBehind, parkedBehind, close()], atSeconds: 4, wasRed: []), [1, 2])
+        XCTAssertEqual(redTrackIds([comingBehind], atSeconds: 4, wasRed: []), [], "far and alone: yellow")
+    }
+
+    func testRedStaysUntilStandstillWithNothingRedInFront() {
+        let stopped = trackWithDirection(heightAt: { _ in 0.05 }, id: 7)
+        XCTAssertEqual(redTrackIds([stopped], atSeconds: 4, wasRed: [7]), [])
+        XCTAssertEqual(redTrackIds([stopped, close()], atSeconds: 4, wasRed: [7]), [1, 7])
+        var crossing = trackWithDirection(heightAt: { _ in 0.1 }, id: 8)
+        crossing.directionBoxes = crossing.directionBoxes.map { ($0.t, $0.box.offsetBy(dx: 0.1 * $0.t, dy: 0)) }
+        XCTAssertEqual(redTrackIds([crossing], atSeconds: 4, wasRed: [8]), [8], "still moving: stays red")
+    }
+
+    func testTints() {
+        XCTAssertEqual(highlight(close(), isRed: true), .danger)
+        XCTAssertEqual(highlight(parkedBehind, isRed: false), .facing)
+        XCTAssertEqual(highlight(trackWithDirection(heightAt: { 0.08 * (1 - 0.06 * $0) }), isRed: false), .away)
     }
 }

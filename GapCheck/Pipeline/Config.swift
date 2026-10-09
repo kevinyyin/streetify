@@ -69,6 +69,19 @@ enum Config {
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 
+    /// Screen only: a car whose time to arrival is this or less turns red; Decide and speech don't use it.
+    static let dangerHighlightSeconds = 8.0
+    /// Screen only: height history for telling a car driving away; longer than historySeconds so slow shrinking shows.
+    static let directionWindowSeconds = 4.0
+    /// Screen only: a car shrinking (growing) at least this fraction of its height per second is driving away (toward us).
+    static let awayMinShrinkPerSecond = 0.03
+    /// Screen only: a car whose center moves less than this many box widths per second is at a standstill.
+    static let stillMaxBoxWidthsPerSecond = 0.1
+    /// Screen only: a red car at most this many box widths to the side of a smaller car counts as in front of it.
+    static let lineMaxGapBoxWidths = 1.5
+    /// Screen only: segmentation masks below this confidence are not drawn.
+    static let minMaskConfidence: Float = 0.25
+
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4
     /// Mean luma (0...1) below this is too dark. Calibrate on Footage.

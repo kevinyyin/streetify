@@ -1,0 +1,99 @@
+{
+  "" : {
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/GapCheckTests-primary.dia",
+    "emit-module-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/GapCheckTests-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/GapCheckTests-primary-emit-module.dia",
+    "pch" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/GapCheckTests-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/GapCheckTests-primary.swiftdeps"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/ClipTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/ClipTests~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/DecideTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DecideTests~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/DetectTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/DetectTests~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/FeedbackTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FeedbackTests~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/FootageTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/FootageTests~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/LevelTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/LevelTests~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/TestHelpers.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TestHelpers~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/TmpTrackDump.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TmpTrackDump~partial.swiftmodule"
+  },
+  "/Users/nathantien/Documents/GitHub/streetify/GapCheckTests/TrackTests.swift" : {
+    "const-values" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.swiftconstvalues",
+    "dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.d",
+    "diagnostics" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.dia",
+    "index-unit-output-path" : "/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.o",
+    "llvm-bc" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.bc",
+    "object" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.o",
+    "swift-dependencies" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests.swiftdeps",
+    "swiftmodule" : "/Users/nathantien/Documents/GitHub/streetify/build/Build/Intermediates.noindex/GapCheck.build/Debug-iphonesimulator/GapCheckTests.build/Objects-normal/arm64/TrackTests~partial.swiftmodule"
+  }
+}

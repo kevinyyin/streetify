@@ -37,6 +37,11 @@
 - [x] Haptics, tone, speech (not verified on device)
 - [x] State-change test
 - [x] Feedback redesign: one job per signal (2026-10-09) (not verified on device)
+- [x] Speech: same-side news waits instead of cutting in; waiting sentences are refreshed or dropped when their turn comes; tone silent until a frame reports tilt (2026-10-09) (not verified on device)
+
+## Debug overlay
+- [x] Segmentation outlines (YOLO11n-seg, screen only, own queue, skips frames when busy) tinted red ≤ 8 s, yellow facing us, green driving away (2026-10-09) (not verified on device: speed and heat with two cameras)
+- [x] Red sticks to a car until it leaves the picture or stands still with no red car ahead in its line; cars coming behind a red car are red too; direction (green) judged over 4 s (2026-10-09)
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
