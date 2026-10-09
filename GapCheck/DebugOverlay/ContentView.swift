@@ -41,8 +41,8 @@ struct ContentView: View {
             .accessibilityLabel("\(name) camera view, \(p.tracks.count) vehicles tracked")
 
             HStack {
-                Text("\(name): \(String(describing: p.state))") // Task 10 swaps in Strings.sentence
-                    .accessibilityLabel("\(name): \(String(describing: p.state))")
+                Text(Strings.sentence(side, p.state))
+                    .accessibilityLabel(Strings.sentence(side, p.state))
                 Spacer()
                 Button("Replay \(name.lowercased())…") {
                     importSide = side

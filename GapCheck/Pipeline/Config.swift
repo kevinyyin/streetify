@@ -47,6 +47,16 @@ enum Config {
     /// Stationary vehicles covering more than this fraction of the tile block the view.
     static let blockedFraction = 0.3
 
+    /// Aiming tone (until level): low pitch at this tilt or more, rising to aimMaxHz at level.
+    static let aimMaxErrorDegrees = 45.0
+    static let aimMinHz = 200.0
+    static let aimMaxHz = 500.0
+    /// Approaching tone: approachMinHz at the window's edge or "far", rising to approachMaxHz at arrival.
+    static let approachMinHz = 600.0
+    static let approachMaxHz = 1200.0
+    /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
+    static let announceCoalesceSeconds = 0.2
+
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4
     /// Mean luma (0...1) below this is too dark. Calibrate on Footage.
