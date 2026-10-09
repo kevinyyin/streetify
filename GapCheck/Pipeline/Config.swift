@@ -56,6 +56,8 @@ enum Config {
     static let approachMaxHz = 1200.0
     /// Tone loudness, 0...1 of full scale.
     static let toneAmplitude: Float = 0.25
+    /// After this long, a side that never produced a state is announced as stopped.
+    static let startupGraceSeconds = 3.0
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 

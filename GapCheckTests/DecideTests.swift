@@ -104,3 +104,11 @@ final class DecideTests: XCTestCase {
         XCTAssertEqual(feed(Decider(), from: 1.5, through: 3.0, tracks: [parked]), .clear)
     }
 }
+
+/// The live watchdog runs on main from host arrival times, so a hung pipeline or an ended replay still goes stale.
+final class WatchdogTests: XCTestCase {
+    func testSilentSideGoesStale() {
+        XCTAssertEqual(staleSides(lastUpdateSeconds: [.left: 10, .right: 10.2], nowSeconds: 10.31), [.left])
+        XCTAssertEqual(staleSides(lastUpdateSeconds: [.left: 10], nowSeconds: 10.29), [])
+    }
+}

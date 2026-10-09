@@ -36,7 +36,7 @@ final class FeedbackTests: XCTestCase {
     }
 
     func testEachStateGivesItsHaptic() {
-        XCTAssertEqual(announce(previous: stale, current: [.left: .clear, .right: .unknown(.stale)])?.haptic, .clear)
+        XCTAssertEqual(announce(previous: [.left: .unknown(.stale), .right: .clear], current: [.left: .clear, .right: .clear])?.haptic, .clear)
         XCTAssertEqual(announce(previous: stale, current: [.left: .unknown(.covered), .right: .unknown(.stale)])?.haptic, .unknown)
         XCTAssertEqual(announce(previous: stale, current: [.left: .approaching(seconds: 3), .right: .unknown(.stale)])?.haptic, .approaching)
     }
@@ -51,6 +51,31 @@ final class FeedbackTests: XCTestCase {
         XCTAssertEqual(announce(previous: [.left: .clear, .right: .clear],
                                 current: [.left: .unknown(.notLevel), .right: .unknown(.notLevel)]),
                        FeedbackEvent(haptic: .unknown, text: "Hold the phone level"))
+    }
+
+    /// Approaching and Unknown override Clear: a side going clear must not replace the other side's warning.
+    func testClearDoesNotDropOtherSidesWarning() {
+        XCTAssertEqual(announce(previous: [.left: .approaching(seconds: 1), .right: .approaching(seconds: 6)],
+                                current: [.left: .clear, .right: .approaching(seconds: 5)]),
+                       FeedbackEvent(haptic: .approaching, text: "No cars seen left. Car right, about 5 seconds"))
+        XCTAssertEqual(announce(previous: [.left: .approaching(seconds: 2), .right: .unknown(.covered)],
+                                current: [.left: .clear, .right: .unknown(.covered)]),
+                       FeedbackEvent(haptic: .unknown, text: "No cars seen left. Right camera covered"))
+    }
+
+    /// A side still in its initial stale state after startup was never announced; the baseline forgets it so it is.
+    func testUnstartedSideIsAnnouncedAfterStartup() {
+        let states: [Side: DirectionState] = [.left: .unknown(.stale), .right: .clear]
+        XCTAssertEqual(announce(previous: baselineAfterStartup(states), current: states),
+                       FeedbackEvent(haptic: .unknown, text: "Left camera stopped"))
+    }
+
+    /// A route change or interruption stops the audio engine; the next update must bring the tone back.
+    func testToneRestartsWhenEngineStops() {
+        let tone = Tone()
+        tone.engine.stop()
+        tone.apply(ToneSettings(isOn: true, frequencyHz: 600, pan: 0))
+        XCTAssertTrue(tone.engine.isRunning)
     }
 
     func testTonePansToNearestCar() {

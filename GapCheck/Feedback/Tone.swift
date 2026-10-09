@@ -2,7 +2,7 @@ import AVFoundation
 
 /// One sine oscillator whose pitch, pan and on/off follow `ToneSettings`.
 final class Tone {
-    private let engine = AVAudioEngine()
+    let engine = AVAudioEngine()
     private var node: AVAudioSourceNode!
     // ponytail: plain Doubles read on the render thread without a lock; use an atomic if the tone ever glitches.
     private var frequencyHz = 0.0
@@ -29,6 +29,8 @@ final class Tone {
     }
 
     func apply(_ settings: ToneSettings) {
+        // Route changes (e.g. Bluetooth headphones) and interruptions (calls, Siri) stop the engine; restart on the next update.
+        if !engine.isRunning { try? engine.start() }
         frequencyHz = settings.frequencyHz
         isOn = settings.isOn
         node.pan = settings.pan

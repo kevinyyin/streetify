@@ -30,16 +30,30 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
         return (side, now)
     }
     guard !changed.isEmpty else { return nil }
+    var spoken = changed
+    // Approaching and Unknown override Clear: "No cars seen left" must not replace a warning about the right.
+    if changed.contains(where: { $0.1 == .clear }) {
+        spoken += [Side.left, .right].compactMap { side in
+            guard !changed.contains(where: { $0.0 == side }), let now = current[side], now != .clear else { return nil }
+            return (side, now)
+        }
+    }
     var sentences: [String] = []
-    for (side, state) in changed {
+    for (side, state) in spoken {
         let s = Strings.sentence(side, state)
         if !sentences.contains(s) { sentences.append(s) }
     }
-    let states = changed.map(\.1)
+    let states = spoken.map(\.1)
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
         : states.contains(where: { if case .unknown = $0 { true } else { false } }) ? .unknown
         : .clear
     return FeedbackEvent(haptic: haptic, text: sentences.joined(separator: ". "))
+}
+
+/// After startup, a side still in its initial stale state was never announced (it started that way).
+/// Forgetting it makes the next announcement say so, instead of leaving that side silent forever.
+func baselineAfterStartup(_ lastAnnounced: [Side: DirectionState]) -> [Side: DirectionState] {
+    lastAnnounced.filter { $0.value != .unknown(.stale) }
 }
 
 struct ToneSettings: Equatable {

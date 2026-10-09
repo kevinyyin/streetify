@@ -6,7 +6,6 @@ enum CaptureError: Error { case noCamera, noMultiCamFormat, cannotAdd }
 /// One camera of the shared multi-cam session. Frames arrive on this source's own queue; late ones are dropped.
 final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSampleBufferDelegate {
     var onFrame: ((Frame) -> Void)?
-    let isLive = true
 
     private let position: AVCaptureDevice.Position
     private let motion: CMMotionManager

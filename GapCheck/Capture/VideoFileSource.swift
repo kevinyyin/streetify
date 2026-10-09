@@ -5,7 +5,6 @@ import os
 final class VideoFileSource: FrameSource {
     var onFrame: ((Frame) -> Void)?
     var onFinished: (() -> Void)?
-    let isLive = false
 
     private let url: URL
     private let realTime: Bool

@@ -68,6 +68,13 @@ final class DetectTests: XCTestCase {
         XCTAssertEqual(merge(whole: [a], tile: [b], tileRect: tile).count, 2)
     }
 
+    /// A model whose output isn't object observations must fail the frame (→ stale), not read as "no cars".
+    func testUnexpectedResultsThrow() throws {
+        XCTAssertThrowsError(try vehicles([VNDetectedObjectObservation(boundingBox: .zero)]))
+        XCTAssertThrowsError(try vehicles(nil))
+        XCTAssertEqual(try vehicles([]), [])
+    }
+
     func testDetectRunsOnBlankFrame() throws {
         let frame = makeFrame(makeLumaBuffer(width: 1920, height: 1080) { _, _ in 0 })
         XCTAssertEqual(try Detector().detect(frame), [])
