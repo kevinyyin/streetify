@@ -25,9 +25,9 @@ final class FeedbackTests: XCTestCase {
     }
 
     func testNoChangeGivesNothing() {
-        let s: [Side: DirectionState] = [.left: .clear, .right: .approaching(.seconds(6))]
+        let s: [Side: DirectionState] = [.left: .clear, .right: .approaching(.seconds(9))]
         XCTAssertNil(announce(previous: s, current: s))
-        XCTAssertNil(announce(previous: s, current: [.left: .clear, .right: .approaching(.seconds(5))]))
+        XCTAssertNil(announce(previous: s, current: [.left: .clear, .right: .approaching(.seconds(8))]))
     }
 
     func testFarToTimedIsAChange() {
@@ -58,10 +58,32 @@ final class FeedbackTests: XCTestCase {
                        FeedbackEvent(haptic: .approaching, text: "Car left, about 6 seconds. No cars seen right"))
     }
 
-    func testSameSentenceBothSidesSpokenOnce() {
-        XCTAssertEqual(announce(previous: [.left: .clear, .right: .clear],
-                                current: [.left: .unknown(.notLevel), .right: .unknown(.notLevel)]),
-                       FeedbackEvent(haptic: .unknown, text: "Hold the phone level"))
+    /// Not level is the tone's job: no speech, no vibration. Leveling out always gets the status announced.
+    func testNotLevelIsSilentButLevelingOutIsAnnounced() {
+        let clear: [Side: DirectionState] = [.left: .clear, .right: .clear]
+        let tilted: [Side: DirectionState] = [.left: .unknown(.notLevel), .right: .unknown(.notLevel)]
+        XCTAssertNil(announce(previous: clear, current: tilted))
+        XCTAssertEqual(announce(previous: announcedBaseline(previous: clear, current: tilted), current: clear),
+                       FeedbackEvent(haptic: .clear, text: "No cars seen left. No cars seen right"))
+    }
+
+    /// One extra warning when a car gets close; a wobbling estimate doesn't repeat it.
+    func testCloseWarningSpokenOnce() {
+        let at12: [Side: DirectionState] = [.left: .approaching(.seconds(12)), .right: .clear]
+        let at4: [Side: DirectionState] = [.left: .approaching(.seconds(4)), .right: .clear]
+        let at6: [Side: DirectionState] = [.left: .approaching(.seconds(6)), .right: .clear]
+        XCTAssertEqual(announce(previous: at12, current: at4), FeedbackEvent(haptic: .approaching, text: "Car left, about 4 seconds"))
+        var baseline = announcedBaseline(previous: at12, current: at4)
+        XCTAssertNil(announce(previous: baseline, current: at6))
+        baseline = announcedBaseline(previous: baseline, current: at6)
+        XCTAssertNil(announce(previous: baseline, current: at4))
+    }
+
+    /// The one exception to "nothing spoken while tilted": a stopped camera.
+    func testCameraStoppedIsSpokenWhileTilted() {
+        XCTAssertEqual(announce(previous: [.left: .unknown(.notLevel), .right: .unknown(.notLevel)],
+                                current: [.left: .unknown(.stale), .right: .unknown(.notLevel)])?.text,
+                       "Left camera stopped")
     }
 
     /// Approaching and Unknown override Clear: a side going clear must not replace the other side's warning.
