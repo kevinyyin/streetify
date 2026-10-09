@@ -33,6 +33,11 @@ final class DetectTests: XCTestCase {
         XCTAssertEqual(t.height, 640.0 / 1920, accuracy: 1e-9)
     }
 
+    /// Footage smaller than the tile must still be analyzed: Vision rejects a region of interest outside the image.
+    func testTileRectClampsToSmallFrames() {
+        XCTAssertEqual(tileRect(orientedWidthPixels: 640, orientedHeightPixels: 360), CGRect(x: 0, y: 0, width: 1, height: 1))
+    }
+
     func testMapFromTile() {
         let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
         XCTAssertEqual(mapFromTile(CGRect(x: 0, y: 0, width: 1, height: 1), tile: tile), tile)

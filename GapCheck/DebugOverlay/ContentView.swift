@@ -31,18 +31,18 @@ struct ContentView: View {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .scaledToFit()
-                        .overlay { Canvas { ctx, size in drawBoxes(p.detections, in: ctx, size: size) } }
+                        .overlay { Canvas { ctx, size in drawTracks(p.tracks, atSeconds: p.timestampSeconds, in: ctx, size: size) } }
                 } else {
                     Text("No feed")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(name) camera view, \(p.detections.count) vehicles")
+            .accessibilityLabel("\(name) camera view, \(p.tracks.count) vehicles tracked")
 
             HStack {
-                Text("\(name): \(p.detections.count) vehicles")
-                    .accessibilityLabel("\(name): \(p.detections.count) vehicles")
+                Text("\(name): \(String(describing: p.state))") // Task 10 swaps in Strings.sentence
+                    .accessibilityLabel("\(name): \(String(describing: p.state))")
                 Spacer()
                 Button("Replay \(name.lowercased())…") {
                     importSide = side
@@ -54,12 +54,17 @@ struct ContentView: View {
         }
     }
 
-    private func drawBoxes(_ detections: [Detection], in ctx: GraphicsContext, size: CGSize) {
-        for d in detections {
+    /// Each track's box, id and time to arrival ("new" while too new to measure, "-" when not closing).
+    private func drawTracks(_ tracks: [Track], atSeconds t: Double, in ctx: GraphicsContext, size: CGSize) {
+        for track in tracks {
             // Vision boxes have their origin bottom-left.
-            let rect = CGRect(x: d.box.minX * size.width, y: (1 - d.box.maxY) * size.height,
-                              width: d.box.width * size.width, height: d.box.height * size.height)
+            let rect = CGRect(x: track.box.minX * size.width, y: (1 - track.box.maxY) * size.height,
+                              width: track.box.width * size.width, height: track.box.height * size.height)
             ctx.stroke(Path(rect), with: .color(.yellow), lineWidth: 2)
+            let e = track.estimate(atSeconds: t)
+            let time = e.isTooNew ? "new" : e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "-"
+            ctx.draw(Text("\(track.id)  \(time)").font(.caption).foregroundStyle(.yellow),
+                     at: CGPoint(x: rect.minX, y: rect.minY - 2), anchor: .bottomLeading)
         }
     }
 }
