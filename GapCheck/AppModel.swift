@@ -50,6 +50,11 @@ final class AppModel {
         }
     }
 
+    /// Says the current status of both directions again (the screen's tap / VoiceOver action).
+    func speakStatus() {
+        speech.say(Strings.status(panes.mapValues(\.state)))
+    }
+
     func replay(_ url: URL, on side: Side) {
         run(VideoFileSource(url: url, realTime: true), on: side)
     }

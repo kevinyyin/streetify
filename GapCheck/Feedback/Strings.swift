@@ -16,4 +16,13 @@ enum Strings {
         case .unknown(.viewBlocked): return side == .left ? "Left view blocked" : "Right view blocked"
         }
     }
+
+    /// Both directions in one sentence, left first: what the screen reads to VoiceOver and what a tap speaks.
+    static func status(_ states: [Side: DirectionState]) -> String {
+        var sentences: [String] = []
+        for side in [Side.left, .right] {
+            if let s = states[side].map({ sentence(side, $0) }), !sentences.contains(s) { sentences.append(s) }
+        }
+        return sentences.joined(separator: ". ")
+    }
 }
