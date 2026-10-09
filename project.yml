@@ -32,3 +32,4 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.0"
+        PRODUCT_BUNDLE_IDENTIFIER: "$(inherited).tests"

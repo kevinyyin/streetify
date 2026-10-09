@@ -14,7 +14,7 @@
 - [x] project.yml: app target GapCheck (SwiftUI, camera usage description), test target GapCheckTests, Local.xcconfig included
 - [x] Export YOLO to CoreML and add it to the app target
 - [x] Empty app builds; tests run on a simulator; Commands in CLAUDE.md filled in; first commit
-- [ ] STOP: ask me to sign in to Xcode and pick my team once. Then read DEVELOPMENT_TEAM from the generated project into Local.xcconfig, set a unique bundle ID, regenerate
+- [x] STOP: ask me to sign in to Xcode and pick my team once. Then read DEVELOPMENT_TEAM from the generated project into Local.xcconfig, set a unique bundle ID, regenerate
 - [ ] STOP: ask me to run it on my iPhone; confirm it launches
 
 ## Phase 1: one direction (hours 0 to 8)
