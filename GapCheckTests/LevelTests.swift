@@ -62,4 +62,17 @@ final class LevelBufferTests: XCTestCase {
         }
         XCTAssertEqual(results, [true, false, false, true])
     }
+
+    /// Both cameras share one buffer, so a dip only one of them sampled can't leave them disagreeing.
+    func testSharedLevelGateKeepsCamerasInAgreement() {
+        func reading(_ degrees: Double) -> Attitude {
+            let p = degrees * .pi / 180
+            return attitude(gravityX: 0, gravityY: -cos(p), gravityZ: sin(p))
+        }
+        let gate = LevelGate()
+        XCTAssertFalse(gate.update(reading(20))) // front
+        XCTAssertTrue(gate.update(reading(5)))   // front catches the dip back to level
+        XCTAssertTrue(gate.update(reading(7)))   // back missed the dip, and agrees anyway
+        XCTAssertFalse(gate.update(nil))         // no motion data: not level
+    }
 }

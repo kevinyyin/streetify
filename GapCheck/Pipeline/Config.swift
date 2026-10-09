@@ -62,6 +62,8 @@ enum Config {
     static let startupGraceSeconds = 3.0
     /// A car's time is spoken once more when it drops to this many seconds or fewer.
     static let closeWarningSeconds = 5.0
+    /// After a close warning, a time this much higher is treated as the next car and spoken; less is the same car.
+    static let newCarJumpSeconds = 3.0
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 

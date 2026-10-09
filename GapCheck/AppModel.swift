@@ -19,6 +19,7 @@ final class AppModel {
 
     @ObservationIgnored private let session = AVCaptureMultiCamSession()
     @ObservationIgnored private let motion = CMMotionManager()
+    @ObservationIgnored private let level = LevelGate()
     @ObservationIgnored private var pipelines: [Side: Pipeline] = [:]
     @ObservationIgnored private let ciContext = CIContext()
 
@@ -64,8 +65,8 @@ final class AppModel {
         let frontSide: Side = Config.frontCameraFacesLeft ? .left : .right
         let backSide: Side = frontSide == .left ? .right : .left
         // A camera that fails to configure never starts, so its side stays Unknown.
-        if let back = try? LiveCameraSource(session: session, position: .back, motion: motion) { run(back, on: backSide) }
-        if let front = try? LiveCameraSource(session: session, position: .front, motion: motion) { run(front, on: frontSide) }
+        if let back = try? LiveCameraSource(session: session, position: .back, motion: motion, level: level) { run(back, on: backSide) }
+        if let front = try? LiveCameraSource(session: session, position: .front, motion: motion, level: level) { run(front, on: frontSide) }
         Logger(subsystem: "GapCheck", category: "capture")
             .info("multi-cam hardwareCost \(self.session.hardwareCost), systemPressureCost \(self.session.systemPressureCost)")
         DispatchQueue.global(qos: .userInitiated).async { self.session.startRunning() }

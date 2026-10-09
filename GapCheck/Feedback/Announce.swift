@@ -25,12 +25,16 @@ private enum Spoken: Equatable {
     }
 }
 
-/// Moving away from the car (close → timed, timed → far, close → far) is silent, so an estimate wobbling around
-/// a boundary doesn't repeat itself.
+/// Timed → far is silent (a far car hovering at the window edge). After a close warning, a time within
+/// `Config.newCarJumpSeconds` of it is the same car wobbling (silent); a bigger jump, or "far", is the next car.
 private func isChange(from previous: DirectionState?, to current: DirectionState) -> Bool {
     let from = previous.map(Spoken.init), to = Spoken(current)
-    let silent: [(Spoken, Spoken)] = [(.timed, .far), (.close, .timed), (.close, .far)]
-    return from != to && !silent.contains { $0.0 == from && $0.1 == to }
+    guard from != to else { return false }
+    if from == .timed && to == .far { return false }
+    // ponytail: "big jump = new car" heuristic; carry track ids in the state if two cars close together blur.
+    if from == .close, to == .timed, case .approaching(.seconds(let was))? = previous,
+       case .approaching(.seconds(let now)) = current, Double(now - was) <= Config.newCarJumpSeconds { return false }
+    return true
 }
 
 /// What `previous` becomes once `announce` has run: sides whose change was spoken take their new state;
