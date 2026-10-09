@@ -76,12 +76,12 @@ struct ContentView: View {
         }
     }
 
-    /// Red = car, amber = problem, gray = no cars. Never green, so nothing on screen reads as "go".
+    /// Red = car, amber = problem, green = no cars (owner's choice, 2026-10-09; the words still never say "go").
     private func statusBar(_ side: Side, _ state: DirectionState) -> some View {
         let (fill, text): (Color, Color) = switch priority(of: state) {
         case .car: (.red, .white)
         case .problem: (.orange, .black)
-        case .noCars: (Color(white: 0.25), .white)
+        case .noCars: (.green, .black)
         }
         return Text("\(side == .left ? "Left" : "Right") · \(Strings.label(state))")
             .font(.title3.weight(.semibold))
