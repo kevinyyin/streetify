@@ -19,7 +19,7 @@
 
 ## Phase 1: one direction (hours 0 to 8)
 - [ ] FrameSource with LiveCameraSource (back camera) and VideoFileSource
-- [ ] Whole-frame detection through Vision
+- [x] Whole-frame detection through Vision
 - [ ] Debug overlay with feed and boxes
 
 ## Phase 2: trustworthy, then both directions (hours 8 to 18)
