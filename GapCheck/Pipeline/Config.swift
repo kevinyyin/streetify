@@ -18,6 +18,13 @@ enum Config {
     /// Detections below this confidence are ignored; lower means more detections.
     static let minDetectionConfidence: Float = 0.25
 
+    /// Side of the centered square run at full resolution for far cars; matches the model input.
+    static let tileSizePixels = 640
+    /// A tile box this close to the tile edge (fraction of tile size) is treated as cut off.
+    static let tileEdgeMarginFraction = 0.01
+    /// Whole-frame and tile boxes overlapping at least this much are the same car.
+    static let mergeIoU = 0.5
+
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4
     /// Mean luma (0...1) below this is too dark. Calibrate on Footage.
