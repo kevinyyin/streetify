@@ -24,7 +24,7 @@
 
 ## Phase 2: trustworthy, then both directions (hours 8 to 18)
 - [x] Center tile request, merged boxes
-- [ ] Tracker and time to arrival
+- [x] Tracker and time to arrival
 - [ ] Decide rules and Config.swift
 - [ ] Unit tests per rule; one clip test
 - [ ] Second camera via AVCaptureMultiCamSession; `frontCameraFacesLeft` (default true)

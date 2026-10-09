@@ -34,3 +34,29 @@ struct SplitMix64: RandomNumberGenerator {
         return z ^ (z >> 31)
     }
 }
+
+/// Heights of a car arriving `tau` s after the last sample: h(t) = hEnd·τ/(τ + tEnd − t), at Config.processFps.
+/// Noise is uniform ±`noisePixels` on a 1920 px axis.
+func approachingHeights(tauAtEndSeconds tau: Double, heightAtEnd hEnd: Double, durationSeconds: Double = 1.5,
+                        noisePixels: Double = 0, seed: UInt64 = 1) -> [(t: Double, h: Double)] {
+    var rng = SplitMix64(state: seed)
+    let n = Int((durationSeconds * Config.processFps).rounded())
+    return (0...n).map { i in
+        let t = Double(i) / Config.processFps
+        let noise = noisePixels == 0 ? 0 : Double.random(in: -noisePixels...noisePixels, using: &rng) / 1920
+        return (t, hEnd * tau / (tau + durationSeconds - t) + noise)
+    }
+}
+
+func parkedHeights(height: Double, noisePixels: Double, seed: UInt64) -> [(t: Double, h: Double)] {
+    var rng = SplitMix64(state: seed)
+    return (0...15).map { i in (Double(i) / Config.processFps, height + Double.random(in: -noisePixels...noisePixels, using: &rng) / 1920) }
+}
+
+func makeTrack(_ heights: [(t: Double, h: Double)], box: CGRect? = nil, id: Int = 1) -> Track {
+    let h = heights.last!.h
+    return Track(id: id, box: box ?? CGRect(x: 0.5 - h, y: 0.5, width: 2 * h, height: h),
+                 firstSeenSeconds: heights.first!.t, lastSeenSeconds: heights.last!.t, heights: heights)
+}
+
+func car(_ box: CGRect) -> Detection { Detection(box: box, label: "car", confidence: 0.9) }
