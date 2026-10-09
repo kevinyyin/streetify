@@ -2,6 +2,7 @@ import AVFoundation
 import CoreImage
 import CoreMotion
 import Observation
+import os
 
 /// Owns the cameras, motion and pipelines; publishes what the screen shows. UI state lives on main.
 @Observable
@@ -35,9 +36,14 @@ final class AppModel {
     }
 
     private func startCameras() {
-        if let back = try? LiveCameraSource(session: session, position: .back, motion: motion) {
-            run(back, on: .right)
-        }
+        guard AVCaptureMultiCamSession.isMultiCamSupported else { return } // pre-XS phone: both sides stay Unknown
+        let frontSide: Side = Config.frontCameraFacesLeft ? .left : .right
+        let backSide: Side = frontSide == .left ? .right : .left
+        // A camera that fails to configure never starts, so its side stays Unknown.
+        if let back = try? LiveCameraSource(session: session, position: .back, motion: motion) { run(back, on: backSide) }
+        if let front = try? LiveCameraSource(session: session, position: .front, motion: motion) { run(front, on: frontSide) }
+        Logger(subsystem: "GapCheck", category: "capture")
+            .info("multi-cam hardwareCost \(self.session.hardwareCost), systemPressureCost \(self.session.systemPressureCost)")
         DispatchQueue.global(qos: .userInitiated).async { self.session.startRunning() }
     }
 

@@ -7,6 +7,8 @@ enum Config {
     /// Requested camera resolution, landscape sensor pixels.
     static let captureWidthPixels: Int32 = 1920
     static let captureHeightPixels: Int32 = 1080
+    /// The screen faces left down the road, so the front camera watches left and the back camera right.
+    static let frontCameraFacesLeft = true
 
     /// Max tilt of the camera axis from horizontal; the center tile only spans about ±11° vertically.
     static let levelPitchToleranceDegrees = 8.0
