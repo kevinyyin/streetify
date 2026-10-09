@@ -26,12 +26,12 @@ Time to arrival = box height / change in height per second. Height, because hand
 
 - **Hold:** gravity picks portrait, upside-down or either landscape every frame; Vision gets that camera's EXIF orientation; tracks reset when it changes. Level = pitch ≤ 8°, roll ≤ 10° (the tile spans about ±11° vertically, so more pitch loses the horizon). Idle timer off; UI locked portrait.
 - **Detect:** whole-frame request uses `.scaleFit` (the default `.centerCrop` drops about 44% of a 16:9 frame). Tile boxes are mapped back to full-frame coordinates. Overlap with IoU ≥ 0.5 keeps the tile box, unless it touches the tile edge. Confidence ≥ 0.25.
-- **Track:** IoU ≥ 0.3, else nearest center within 1.0 box heights; a track is dropped after 0.5 s unmatched. Time to arrival = mean height / slope − (now − mean time), which is unbiased when the growth is accelerating.
+- **Track:** IoU ≥ 0.3, else nearest center within 1.0 box sizes per axis (hypot(dx/width, dy/height); owner to confirm, the plan said box heights); a track is dropped after 0.5 s unmatched. Time to arrival = mean height / slope − (now − mean time), which is unbiased when the growth is accelerating.
 - **Rule 4:** approaching if too new, or if the lower bound (slope + 2 × slope standard error) gives under 20 s. The spoken number is the point estimate, or "far". Accepted cost: distant parked cars read "far".
 - **Rule 5:** "stationary" = any track that isn't approaching; `blockedFraction` 0.3. People ("person" boxes) also count toward the covered area but are never tracked as cars (approved 2026-10-09). Whole/tile boxes merge only within the same label.
 - **Rule 4 arrival:** a timed estimate under 20 s wins; otherwise "unmeasured" if any approaching track is too new, else "far" (approved 2026-10-09).
 - **Rule 3 start values:** mean luma < 0.08 or > 0.95; Laplacian variance < 10 (calibrate on Footage).
-- **Rule 1:** on replay, a frame-timestamp gap > 300 ms is stale. A frame whose detection throws never updates Decide, so failures go stale.
+- **Rule 1:** the live watchdog runs on main from each side's last update (host clock), so a hung pipeline or an ended replay still goes stale. On frame timestamps, a gap > 300 ms is stale. A frame whose detection throws never updates Decide, so failures go stale.
 
 ## Tests
 
