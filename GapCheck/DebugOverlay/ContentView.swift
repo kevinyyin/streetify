@@ -22,12 +22,14 @@ struct ContentView: View {
             .accessibilityHint("Double-tap to hear it again")
             .accessibilityAction { model.speakStatus() }
 
-            HStack {
-                replayButton(.left)
-                Spacer()
-                replayButton(.right)
+            if showsReplayControls(arguments: ProcessInfo.processInfo.arguments) {
+                HStack {
+                    replayButton(.left)
+                    Spacer()
+                    replayButton(.right)
+                }
+                .font(.body)
             }
-            .font(.body)
         }
         .padding(16)
         .background(Color.black)
@@ -80,4 +82,10 @@ struct ContentView: View {
                      at: CGPoint(x: rect.minX, y: rect.minY - 2), anchor: .bottomLeading)
         }
     }
+}
+
+/// Replay swaps a live camera for a recorded clip, so it is for testers only: shown when launched with
+/// `-showReplay` (the Xcode scheme passes it), never from the home screen.
+func showsReplayControls(arguments: [String]) -> Bool {
+    arguments.contains("-showReplay")
 }

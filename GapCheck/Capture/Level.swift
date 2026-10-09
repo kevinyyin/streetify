@@ -1,5 +1,6 @@
 import AVFoundation
 import ImageIO
+import os
 
 /// How the phone is held, named like UIDeviceOrientation.
 enum Hold {
@@ -34,6 +35,19 @@ func isLevel(_ a: Attitude, wasLevel: Bool) -> Bool {
     let pitchLimit = wasLevel ? Config.levelPitchToleranceDegrees : Config.levelReturnPitchToleranceDegrees
     let rollLimit = wasLevel ? Config.levelRollToleranceDegrees : Config.levelReturnRollToleranceDegrees
     return abs(a.pitchDegrees) <= pitchLimit && abs(a.rollDegrees) <= rollLimit
+}
+
+/// One level buffer for the whole phone, shared by both cameras so they never disagree about level.
+final class LevelGate {
+    private let wasLevel = OSAllocatedUnfairLock(initialState: false)
+
+    /// Feeds one motion reading (nil = no motion data, which reads as not level) and returns the buffered state.
+    func update(_ a: Attitude?) -> Bool {
+        wasLevel.withLock { was in
+            was = a.map { isLevel($0, wasLevel: was) } ?? false
+            return was
+        }
+    }
 }
 
 /// Gravity in device coordinates (CMDeviceMotion.gravity) to hold, pitch and roll.

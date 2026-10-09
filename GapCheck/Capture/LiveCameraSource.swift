@@ -9,14 +9,15 @@ final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSam
 
     private let position: AVCaptureDevice.Position
     private let motion: CMMotionManager
+    private let level: LevelGate
     private let queue: DispatchQueue
     private var isRunning = false // only touched on `queue`
     private var lastSeconds = -Double.infinity
-    private var wasLevel = false // only touched on `queue`
 
-    init(session: AVCaptureMultiCamSession, position: AVCaptureDevice.Position, motion: CMMotionManager) throws {
+    init(session: AVCaptureMultiCamSession, position: AVCaptureDevice.Position, motion: CMMotionManager, level: LevelGate) throws {
         self.position = position
         self.motion = motion
+        self.level = level
         queue = DispatchQueue(label: position == .front ? "camera.front" : "camera.back")
         super.init()
 
@@ -58,9 +59,8 @@ final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSam
         lastSeconds = t
         // No motion data reads as not level, so Decide reports Unknown.
         let a = motion.deviceMotion.map { attitude(gravityX: $0.gravity.x, gravityY: $0.gravity.y, gravityZ: $0.gravity.z) }
-        wasLevel = a.map { isLevel($0, wasLevel: wasLevel) } ?? false
         onFrame?(Frame(pixelBuffer: buffer, timestampSeconds: t,
                        orientation: exifOrientation(hold: a?.hold ?? .portrait, position: position),
-                       isLevel: wasLevel, tiltErrorDegrees: a?.tiltErrorDegrees ?? 90))
+                       isLevel: level.update(a), tiltErrorDegrees: a?.tiltErrorDegrees ?? 90))
     }
 }

@@ -17,7 +17,7 @@ The user can't see the screen; this folder is the product for them. One job per 
 - **Not level is never spoken and has no vibration**; the tone says it. The state after leveling out is always announced, even if it is the same as before the tilt.
 - **Never two voices:** with VoiceOver on, speech is a high-priority VoiceOver announcement; otherwise AVSpeechSynthesizer. Audio session `.playback` + `.mixWithOthers`.
 - **Tone and speech don't overlap:** the tone plays only while not level, and while not level nothing is spoken, with one exception: "camera stopped" is always spoken.
-- A change means a change of kind, a change of Unknown reason (other than not level), far/unmeasured → timed, or timed → close (at or under `Config.closeWarningSeconds`, 5 s). Timed → far and close → timed are silent, so each car gets at most its first time and one close warning.
+- A change means a change of kind, a change of Unknown reason (other than not level), far/unmeasured → timed, or timed → close (at or under `Config.closeWarningSeconds`, 5 s). Timed → far is silent. After a close warning, a time within 3 s of it is the same car (silent); a bigger jump or "far" is the next car and is spoken. So each car gets its first time and one close warning.
 - A too-new track is "Car left" with no distance; "far" is only for measured cars beyond 20 s.
 - Output is coalesced for 0.2 s; both directions changing together = one sentence; identical sentences are spoken once. New speech interrupts old.
 - Approaching and Unknown always override Clear: a side going clear restates the other side's car or problem, and the vibration follows the most urgent state spoken (car > problem > no cars).

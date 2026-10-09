@@ -22,6 +22,8 @@ targets:
         SWIFT_VERSION: "5.0"
     scheme:
       testTargets: [GapCheckTests]
+      commandLineArguments:
+        "-showReplay": true
   GapCheckTests:
     type: bundle.unit-test
     platform: iOS

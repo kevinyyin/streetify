@@ -85,6 +85,23 @@ final class FeedbackTests: XCTestCase {
         XCTAssertNil(announce(previous: baseline, current: at4))
     }
 
+    /// A second car after a close warning still gets its time and its own close warning.
+    func testNextCarAfterCloseWarningIsAnnounced() {
+        let carA4: [Side: DirectionState] = [.left: .approaching(.seconds(4)), .right: .clear]
+        let carB12: [Side: DirectionState] = [.left: .approaching(.seconds(12)), .right: .clear]
+        let carB5: [Side: DirectionState] = [.left: .approaching(.seconds(5)), .right: .clear]
+        XCTAssertEqual(announce(previous: carA4, current: carB12)?.text, "Car left, about 12 seconds")
+        XCTAssertEqual(announce(previous: announcedBaseline(previous: carA4, current: carB12), current: carB5)?.text,
+                       "Car left, about 5 seconds")
+        XCTAssertEqual(announce(previous: carA4, current: [.left: .approaching(.far), .right: .clear])?.text, "Car left, far")
+    }
+
+    /// Replay controls only appear when launched from Xcode, so a stray tap can't swap a live camera for a clip.
+    func testReplayControlsNeedLaunchArgument() {
+        XCTAssertFalse(showsReplayControls(arguments: ["GapCheck"]))
+        XCTAssertTrue(showsReplayControls(arguments: ["GapCheck", "-showReplay"]))
+    }
+
     /// The one exception to "nothing spoken while tilted": a stopped camera.
     func testCameraStoppedIsSpokenWhileTilted() {
         XCTAssertEqual(announce(previous: [.left: .unknown(.notLevel), .right: .unknown(.notLevel)],
