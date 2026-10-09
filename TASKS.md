@@ -34,7 +34,7 @@
 
 ## Phase 3: feedback (hours 18 to 26)
 - [x] Strings.swift (banned-words test deferred by decision, 2026-10-08)
-- [ ] Haptics, tone, speech
+- [x] Haptics, tone, speech (not verified on device)
 - [x] State-change test
 
 ## Phase 4: test and tune (hours 26 to 32)

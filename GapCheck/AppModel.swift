@@ -4,7 +4,7 @@ import CoreMotion
 import Observation
 import os
 
-/// Owns the cameras, motion and pipelines; publishes what the screen shows. UI state lives on main.
+/// Owns the cameras, motion, pipelines and feedback; publishes what the screen shows. UI state lives on main.
 @Observable
 final class AppModel {
     struct Pane {
@@ -22,7 +22,18 @@ final class AppModel {
     @ObservationIgnored private var pipelines: [Side: Pipeline] = [:]
     @ObservationIgnored private let ciContext = CIContext()
 
+    @ObservationIgnored private let haptics = Haptics()
+    @ObservationIgnored private let tone = Tone()
+    @ObservationIgnored private let speech = Speech()
+    @ObservationIgnored private var lastAnnounced: [Side: DirectionState] = [.left: .unknown(.stale), .right: .unknown(.stale)]
+    @ObservationIgnored private var isAnnouncementScheduled = false
+    @ObservationIgnored private var isLevel = false
+    @ObservationIgnored private var tiltErrorDegrees = 90.0
+
     func start() {
+        try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        updateTone()
         motion.deviceMotionUpdateInterval = 1.0 / 30
         motion.startDeviceMotionUpdates()
         AVCaptureDevice.requestAccess(for: .video) { granted in
@@ -70,6 +81,32 @@ final class AppModel {
             pane.tracks = update.tracks
             pane.state = update.state
             self.panes[update.side] = pane
+
+            if let frame = update.frame {
+                if frame.isLevel && !self.isLevel { self.haptics.play(.ready) }
+                self.isLevel = frame.isLevel
+                self.tiltErrorDegrees = frame.tiltErrorDegrees
+            }
+            self.updateTone()
+            self.scheduleAnnouncement()
+        }
+    }
+
+    private func updateTone() {
+        tone.apply(toneSettings(states: panes.mapValues(\.state), isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees))
+    }
+
+    /// The two cameras change state independently; wait a moment so changes landing together are one sentence.
+    private func scheduleAnnouncement() {
+        guard !isAnnouncementScheduled else { return }
+        isAnnouncementScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + Config.announceCoalesceSeconds) {
+            self.isAnnouncementScheduled = false
+            let current = self.panes.mapValues(\.state)
+            defer { self.lastAnnounced = current }
+            guard let event = announce(previous: self.lastAnnounced, current: current) else { return }
+            self.haptics.play(event.haptic)
+            self.speech.say(event.text)
         }
     }
 }

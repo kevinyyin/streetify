@@ -54,6 +54,8 @@ enum Config {
     /// Approaching tone: approachMinHz at the window's edge or "far", rising to approachMaxHz at arrival.
     static let approachMinHz = 600.0
     static let approachMaxHz = 1200.0
+    /// Tone loudness, 0...1 of full scale.
+    static let toneAmplitude: Float = 0.25
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 
