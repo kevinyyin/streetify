@@ -1,8 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one screen. Sighted judges see both camera views with boxes and a state line per side; VoiceOver hears
-/// one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
+/// The one screen. Sighted judges see the two directions side by side, each with a colored status banner over its
+/// camera; VoiceOver hears one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
 struct ContentView: View {
     let model: AppModel
     @State private var isImporting = false
@@ -10,13 +10,16 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            VStack(spacing: 12) {
-                pane(.left)
-                pane(.right)
+            VStack(spacing: 10) {
+                levelLine
+                HStack(alignment: .top, spacing: 8) {
+                    column(.left)
+                    column(.right)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { model.speakStatus() }
-            // For VoiceOver the camera views, boxes and state lines are one item: the status sentence.
+            // For VoiceOver the whole display is one item: the status sentence.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Strings.status(model.panes.mapValues(\.state)))
             .accessibilityHint("Double-tap to hear it again")
@@ -41,9 +44,23 @@ struct ContentView: View {
         }
     }
 
-    private func pane(_ side: Side) -> some View {
+    private var levelLine: some View {
+        Group {
+            if model.isLevel {
+                Label("Level", systemImage: "checkmark.circle").foregroundStyle(.gray)
+            } else {
+                Text("Tilted \(Int(model.tiltErrorDegrees.rounded()))°").foregroundStyle(.orange)
+            }
+        }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// One direction: its banner on top, its camera below. Left on the left, right on the right.
+    private func column(_ side: Side) -> some View {
         let p = model.panes[side] ?? AppModel.Pane()
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(spacing: 6) {
+            banner(side, p.state)
             Group {
                 if let image = p.image {
                     Image(decorative: image, scale: 1)
@@ -52,12 +69,33 @@ struct ContentView: View {
                         .overlay { Canvas { ctx, size in drawTracks(p.tracks, atSeconds: p.timestampSeconds, in: ctx, size: size) } }
                 } else {
                     Text("No feed")
+                        .foregroundStyle(.gray)
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 8))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Text(Strings.sentence(side, p.state))
-                .font(.body)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+    }
+
+    /// Red = car, amber = problem, gray = no cars. Never green, so nothing on screen reads as "go".
+    private func banner(_ side: Side, _ state: DirectionState) -> some View {
+        let (fill, text): (Color, Color) = switch priority(of: state) {
+        case .car: (.red, .white)
+        case .problem: (.orange, .black)
+        case .noCars: (Color(white: 0.25), .white)
+        }
+        return VStack(spacing: 2) {
+            Text(side == .left ? "Left" : "Right").font(.subheadline)
+            Text(Strings.label(state))
+                .font(.title2.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .foregroundStyle(text)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(fill, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func replayButton(_ side: Side) -> some View {

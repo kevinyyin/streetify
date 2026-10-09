@@ -17,14 +17,17 @@ struct Utterance: Equatable {
     let priority: SpeechPriority
 }
 
-func utterance(_ side: Side, _ state: DirectionState) -> Utterance {
-    let priority: SpeechPriority
+/// How urgent a state is; also picks the banner color on screen (red, amber, gray).
+func priority(of state: DirectionState) -> SpeechPriority {
     switch state {
-    case .approaching: priority = .car
-    case .unknown: priority = .problem
-    case .clear: priority = .noCars
+    case .approaching: return .car
+    case .unknown: return .problem
+    case .clear: return .noCars
     }
-    return Utterance(side: side, text: Strings.sentence(side, state), priority: priority)
+}
+
+func utterance(_ side: Side, _ state: DirectionState) -> Utterance {
+    Utterance(side: side, text: Strings.sentence(side, state), priority: priority(of: state))
 }
 
 struct FeedbackEvent: Equatable {

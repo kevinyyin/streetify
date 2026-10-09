@@ -24,6 +24,23 @@ final class FeedbackTests: XCTestCase {
         XCTAssertEqual(Strings.sentence(.left, .unknown(.viewBlocked)), "Left: blocked")
     }
 
+    /// The big words on each side's banner. Like speech, nothing reads as "go".
+    func testBannerLabels() {
+        XCTAssertEqual(Strings.label(.clear), "No cars")
+        XCTAssertEqual(Strings.label(.approaching(.seconds(6))), "Car · 6 s")
+        XCTAssertEqual(Strings.label(.approaching(.far)), "Car · far")
+        XCTAssertEqual(Strings.label(.approaching(.unmeasured)), "Car")
+        XCTAssertEqual(Strings.label(.unknown(.stale)), "Camera stopped")
+        XCTAssertEqual(Strings.label(.unknown(.notLevel)), "Hold level")
+        XCTAssertEqual(Strings.label(.unknown(.tooDark)), "Too dark")
+        XCTAssertEqual(Strings.label(.unknown(.tooBright)), "Too bright")
+        XCTAssertEqual(Strings.label(.unknown(.covered)), "Camera covered")
+        XCTAssertEqual(Strings.label(.unknown(.viewBlocked)), "Blocked")
+        XCTAssertEqual(priority(of: .approaching(.far)), .car)
+        XCTAssertEqual(priority(of: .unknown(.notLevel)), .problem)
+        XCTAssertEqual(priority(of: .clear), .noCars)
+    }
+
     /// What the single VoiceOver status item reads, and what a tap on the screen speaks.
     func testStatusSentence() {
         XCTAssertEqual(Strings.status([.left: .clear, .right: .approaching(.seconds(6))]), "Left: no cars. Right: car, 6 seconds")
