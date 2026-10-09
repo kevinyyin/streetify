@@ -25,6 +25,19 @@ enum Config {
     /// Whole-frame and tile boxes overlapping at least this much are the same car.
     static let mergeIoU = 0.5
 
+    /// Track and detection overlapping at least this much are the same car.
+    static let matchIoU = 0.3
+    /// Otherwise, the nearest center within this many box sizes (per axis) is the same car.
+    static let matchRadiusBoxSizes = 1.0
+    /// A track unmatched this long is dropped; shorter gaps ride out missed detections.
+    static let trackLostSeconds = 0.5
+    /// Height history used for the time-to-arrival fit; younger tracks are "too new" (Approaching, far).
+    static let historySeconds = 1.5
+    /// A car arriving sooner than this is Approaching.
+    static let approachWindowSeconds = 20.0
+    /// Decide on growth + this many standard errors, so noisy far cars stay Approaching.
+    static let tauConfidenceSigmas = 2.0
+
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4
     /// Mean luma (0...1) below this is too dark. Calibrate on Footage.

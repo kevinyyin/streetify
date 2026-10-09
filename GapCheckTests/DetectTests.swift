@@ -41,7 +41,6 @@ final class DetectTests: XCTestCase {
         XCTAssertEqual(m.height, 0.1 * tile.height, accuracy: 1e-9)
     }
 
-    private func car(_ box: CGRect) -> Detection { Detection(box: box, label: "car", confidence: 0.9) }
 
     func testMergeKeepsInteriorTileBox() {
         let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
