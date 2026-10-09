@@ -30,8 +30,8 @@ Footage/                recordings, gitignored
 
 ```
 xcodegen generate
-xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' test
-xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:GapCheckTests/<Class>
+xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' -collect-test-diagnostics never test
+xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' -collect-test-diagnostics never test -only-testing:GapCheckTests/<Class>
 .venv/bin/yolo export model=yolo11n.pt format=coreml nms=True imgsz=640   # then move yolo11n.mlpackage to GapCheck/Pipeline/
 ```
 
