@@ -1,4 +1,6 @@
-# GapCheck
+# Streetify
+
+The app's name is Streetify; the code, Xcode target and scheme keep the name GapCheck.
 
 iOS app for blind pedestrians at unsignalized crossings. The user holds the iPhone level and edge-on toward the street; the front and back cameras look down the road both ways. Each direction reports Clear, Approaching (with seconds to arrival) or Unknown (with a reason), through haptics, a tone and short speech. Everything runs on-device. Scope: ~25 mph streets, 1 to 2 lanes, user standing at the curb.
 
