@@ -38,7 +38,7 @@
 - [x] State-change test
 
 ## Phase 4: test and tune (hours 26 to 32)
-- [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
+- [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
 - [ ] On device: front-camera range, 5-minute heat run, VoiceOver with Screen Curtain
 
 ## Phase 5: demo (hours 32 to 36)
