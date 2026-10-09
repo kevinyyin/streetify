@@ -18,9 +18,9 @@
 - [ ] STOP: ask me to run it on my iPhone; confirm it launches
 
 ## Phase 1: one direction (hours 0 to 8)
-- [ ] FrameSource with LiveCameraSource (back camera) and VideoFileSource
+- [x] FrameSource with LiveCameraSource (back camera) and VideoFileSource (live: not verified on device)
 - [x] Whole-frame detection through Vision
-- [ ] Debug overlay with feed and boxes
+- [x] Debug overlay with feed and boxes (not verified on device)
 
 ## Phase 2: trustworthy, then both directions (hours 8 to 18)
 - [ ] Center tile request, merged boxes

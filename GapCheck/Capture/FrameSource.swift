@@ -16,3 +16,8 @@ protocol FrameSource: AnyObject {
     func start()
     func stop()
 }
+
+/// True when a frame at `t` keeps the rate at `Config.processFps`; the 0.9 absorbs camera timestamp jitter.
+func isDue(_ t: Double, after lastSeconds: Double) -> Bool {
+    t - lastSeconds >= 0.9 / Config.processFps
+}

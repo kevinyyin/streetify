@@ -41,3 +41,12 @@ final class LevelTests: XCTestCase {
         XCTAssertEqual(exifOrientation(hold: .portrait, position: .front), .leftMirrored)
     }
 }
+
+final class VideoOrientationTests: XCTestCase {
+    func testVideoOrientationFromTransform() {
+        XCTAssertEqual(videoOrientation(CGAffineTransform.identity), .up)
+        XCTAssertEqual(videoOrientation(CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 1080, ty: 0)), .right)
+        XCTAssertEqual(videoOrientation(CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: 1920)), .left)
+        XCTAssertEqual(videoOrientation(CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: 1920, ty: 1080)), .down)
+    }
+}
