@@ -24,6 +24,12 @@ final class FeedbackTests: XCTestCase {
         XCTAssertEqual(Strings.sentence(.left, .unknown(.viewBlocked)), "Left view blocked")
     }
 
+    /// What the single VoiceOver status item reads, and what a tap on the screen speaks.
+    func testStatusSentence() {
+        XCTAssertEqual(Strings.status([.left: .clear, .right: .approaching(.seconds(6))]), "No cars seen left. Car right, about 6 seconds")
+        XCTAssertEqual(Strings.status([.left: .unknown(.notLevel), .right: .unknown(.notLevel)]), "Hold the phone level")
+    }
+
     func testNoChangeGivesNothing() {
         let s: [Side: DirectionState] = [.left: .clear, .right: .approaching(.seconds(9))]
         XCTAssertNil(announce(previous: s, current: s))

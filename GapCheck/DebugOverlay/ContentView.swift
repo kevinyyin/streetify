@@ -1,7 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one screen: both camera views with boxes, a state line per side, and replay buttons. For sighted judges.
+/// The one screen. Sighted judges see both camera views with boxes and a state line per side; VoiceOver hears
+/// one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
 struct ContentView: View {
     let model: AppModel
     @State private var isImporting = false
@@ -9,8 +10,24 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            pane(.left)
-            pane(.right)
+            VStack(spacing: 12) {
+                pane(.left)
+                pane(.right)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { model.speakStatus() }
+            // For VoiceOver the camera views, boxes and state lines are one item: the status sentence.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Strings.status(model.panes.mapValues(\.state)))
+            .accessibilityHint("Double-tap to hear it again")
+            .accessibilityAction { model.speakStatus() }
+
+            HStack {
+                replayButton(.left)
+                Spacer()
+                replayButton(.right)
+            }
+            .font(.body)
         }
         .padding(16)
         .background(Color.black)
@@ -24,7 +41,6 @@ struct ContentView: View {
 
     private func pane(_ side: Side) -> some View {
         let p = model.panes[side] ?? AppModel.Pane()
-        let name = side == .left ? "Left" : "Right"
         return VStack(alignment: .leading, spacing: 6) {
             Group {
                 if let image = p.image {
@@ -37,21 +53,18 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(name) camera view, \(p.tracks.count) vehicles tracked")
-
-            HStack {
-                Text(Strings.sentence(side, p.state))
-                    .accessibilityLabel(Strings.sentence(side, p.state))
-                Spacer()
-                Button("Replay \(name.lowercased())…") {
-                    importSide = side
-                    isImporting = true
-                }
-                .accessibilityLabel("Replay \(name.lowercased()) clip")
-            }
-            .font(.body)
+            Text(Strings.sentence(side, p.state))
+                .font(.body)
         }
+    }
+
+    private func replayButton(_ side: Side) -> some View {
+        let name = side == .left ? "left" : "right"
+        return Button("Replay \(name)…") {
+            importSide = side
+            isImporting = true
+        }
+        .accessibilityLabel("Replay \(name) clip")
     }
 
     /// Each track's box, id and time to arrival ("new" while too new to measure, "-" when not closing).
