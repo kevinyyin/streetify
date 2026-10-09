@@ -24,7 +24,7 @@ Time to arrival = box height / change in height per second. Height, because hand
 
 ## Decisions (approved 2026-10-08)
 
-- **Hold:** gravity picks portrait, upside-down or either landscape every frame; Vision gets that camera's EXIF orientation; tracks reset when it changes. Level = pitch ≤ 8°, roll ≤ 10° (the tile spans about ±11° vertically, so more pitch loses the horizon). Idle timer off; UI locked portrait.
+- **Hold:** gravity picks portrait, upside-down or either landscape every frame; Vision gets that camera's EXIF orientation; tracks reset when it changes. Level = pitch ≤ 8°, roll ≤ 10° (the tile spans about ±11° vertically, so more pitch loses the horizon). Buffer (approved 2026-10-09): once not level, it counts as level again only within 6° pitch and 8° roll, so a wobble near the limit doesn't flip the state. Idle timer off; UI locked portrait.
 - **Detect:** whole-frame request uses `.scaleFit` (the default `.centerCrop` drops about 44% of a 16:9 frame). Tile boxes are mapped back to full-frame coordinates. Overlap with IoU ≥ 0.5 keeps the tile box, unless it touches the tile edge. Confidence ≥ 0.25.
 - **Track:** IoU ≥ 0.3, else nearest center within 1.0 box sizes per axis (hypot(dx/width, dy/height); owner to confirm, the plan said box heights); a track is dropped after 0.5 s unmatched. Time to arrival = mean height / slope − (now − mean time), which is unbiased when the growth is accelerating.
 - **Rule 4:** approaching if too new, or if the lower bound (slope + 2 × slope standard error) gives under 20 s. The spoken number is the point estimate, or "far". Accepted cost: distant parked cars read "far".
