@@ -1,8 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one screen. Sighted judges see the two directions side by side, each with a colored status banner over its
-/// camera; VoiceOver hears one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
+/// The one screen. Sighted judges see the two directions stacked (left on top), each with a colored status bar over
+/// its camera; VoiceOver hears one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
 struct ContentView: View {
     let model: AppModel
     @State private var isImporting = false
@@ -12,10 +12,8 @@ struct ContentView: View {
         VStack(spacing: 12) {
             VStack(spacing: 10) {
                 levelLine
-                HStack(alignment: .top, spacing: 8) {
-                    column(.left)
-                    column(.right)
-                }
+                section(.left)
+                section(.right)
             }
             .contentShape(Rectangle())
             .onTapGesture { model.speakStatus() }
@@ -56,11 +54,11 @@ struct ContentView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// One direction: its banner on top, its camera below. Left on the left, right on the right.
-    private func column(_ side: Side) -> some View {
+    /// One direction: its status bar on top, its camera below. Left is the top section, right the bottom.
+    private func section(_ side: Side) -> some View {
         let p = model.panes[side] ?? AppModel.Pane()
         return VStack(spacing: 6) {
-            banner(side, p.state)
+            statusBar(side, p.state)
             Group {
                 if let image = p.image {
                     Image(decorative: image, scale: 1)
@@ -74,28 +72,26 @@ struct ContentView: View {
                         .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 8))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
     /// Red = car, amber = problem, gray = no cars. Never green, so nothing on screen reads as "go".
-    private func banner(_ side: Side, _ state: DirectionState) -> some View {
+    private func statusBar(_ side: Side, _ state: DirectionState) -> some View {
         let (fill, text): (Color, Color) = switch priority(of: state) {
         case .car: (.red, .white)
         case .problem: (.orange, .black)
         case .noCars: (Color(white: 0.25), .white)
         }
-        return VStack(spacing: 2) {
-            Text(side == .left ? "Left" : "Right").font(.subheadline)
-            Text(Strings.label(state))
-                .font(.title2.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-        }
-        .foregroundStyle(text)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(fill, in: RoundedRectangle(cornerRadius: 8))
+        return Text("\(side == .left ? "Left" : "Right") · \(Strings.label(state))")
+            .font(.title3.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(fill, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func replayButton(_ side: Side) -> some View {
