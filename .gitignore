@@ -1,0 +1,7 @@
+GapCheck.xcodeproj
+Local.xcconfig
+Footage/
+*.pt
+DerivedData
+.DS_Store
+.venv
