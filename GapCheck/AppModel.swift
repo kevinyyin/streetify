@@ -28,8 +28,8 @@ final class AppModel {
     @ObservationIgnored private let speech = Speech()
     @ObservationIgnored private var lastAnnounced: [Side: DirectionState] = [.left: .unknown(.stale), .right: .unknown(.stale)]
     @ObservationIgnored private var isAnnouncementScheduled = false
-    @ObservationIgnored private var isLevel = false
-    @ObservationIgnored private var tiltErrorDegrees = 90.0
+    private(set) var isLevel = false
+    private(set) var tiltErrorDegrees = 90.0
     @ObservationIgnored private var lastUpdateSeconds: [Side: Double] = [:]
     @ObservationIgnored private var watchdog: Timer?
 

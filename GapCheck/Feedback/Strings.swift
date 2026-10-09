@@ -16,6 +16,22 @@ enum Strings {
         }
     }
 
+    /// The big words on a side's banner on screen.
+    static func label(_ state: DirectionState) -> String {
+        switch state {
+        case .clear: return "No cars"
+        case .approaching(.seconds(let seconds)): return "Car · \(seconds) s"
+        case .approaching(.far): return "Car · far"
+        case .approaching(.unmeasured): return "Car"
+        case .unknown(.stale): return "Camera stopped"
+        case .unknown(.notLevel): return "Hold level"
+        case .unknown(.tooDark): return "Too dark"
+        case .unknown(.tooBright): return "Too bright"
+        case .unknown(.covered): return "Camera covered"
+        case .unknown(.viewBlocked): return "Blocked"
+        }
+    }
+
     /// Both directions in one sentence, left first: what the screen reads to VoiceOver and what a tap speaks.
     static func status(_ states: [Side: DirectionState]) -> String {
         var sentences: [String] = []

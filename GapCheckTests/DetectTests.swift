@@ -88,3 +88,4 @@ final class DetectTests: XCTestCase {
         XCTAssertEqual(try Detector().detect(frame), [])
     }
 }
+
