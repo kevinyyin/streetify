@@ -33,9 +33,9 @@
 - [ ] Both directions work live and on replay. Stretch work only after this.
 
 ## Phase 3: feedback (hours 18 to 26)
-- [ ] Strings.swift (banned-words test deferred by decision, 2026-10-08)
+- [x] Strings.swift (banned-words test deferred by decision, 2026-10-08)
 - [ ] Haptics, tone, speech
-- [ ] State-change test
+- [x] State-change test
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
