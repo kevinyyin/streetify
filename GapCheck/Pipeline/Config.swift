@@ -38,6 +38,13 @@ enum Config {
     /// Decide on growth + this many standard errors, so noisy far cars stay Approaching.
     static let tauConfidenceSigmas = 2.0
 
+    /// No processed frame for this long means Unknown (stale).
+    static let staleFrameTimeoutSeconds = 0.3
+    /// Clear only after rules 1 to 5 have been quiet this long.
+    static let clearHoldSeconds = 1.5
+    /// Stationary vehicles covering more than this fraction of the tile block the view.
+    static let blockedFraction = 0.3
+
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4
     /// Mean luma (0...1) below this is too dark. Calibrate on Footage.
