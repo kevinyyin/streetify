@@ -12,7 +12,6 @@ struct Frame {
 
 protocol FrameSource: AnyObject {
     var onFrame: ((Frame) -> Void)? { get set }
-    var isLive: Bool { get }
     func start()
     func stop()
 }

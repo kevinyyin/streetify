@@ -29,11 +29,19 @@ final class AppModel {
     @ObservationIgnored private var isAnnouncementScheduled = false
     @ObservationIgnored private var isLevel = false
     @ObservationIgnored private var tiltErrorDegrees = 90.0
+    @ObservationIgnored private var lastUpdateSeconds: [Side: Double] = [:]
+    @ObservationIgnored private var watchdog: Timer?
 
     func start() {
         try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
         updateTone()
+        // The live stale watchdog: wall clock, on main, independent of the pipeline queues it watches.
+        watchdog = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in self?.markSilentSidesStale() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Config.startupGraceSeconds) {
+            self.lastAnnounced = baselineAfterStartup(self.lastAnnounced)
+            self.scheduleAnnouncement()
+        }
         motion.deviceMotionUpdateInterval = 1.0 / 30
         motion.startDeviceMotionUpdates()
         AVCaptureDevice.requestAccess(for: .video) { granted in
@@ -81,6 +89,7 @@ final class AppModel {
             pane.tracks = update.tracks
             pane.state = update.state
             self.panes[update.side] = pane
+            self.lastUpdateSeconds[update.side] = CACurrentMediaTime()
 
             if let frame = update.frame {
                 if frame.isLevel && !self.isLevel { self.haptics.play(.ready) }
@@ -89,6 +98,15 @@ final class AppModel {
             }
             self.updateTone()
             self.scheduleAnnouncement()
+        }
+    }
+
+    private func markSilentSidesStale() {
+        for side in staleSides(lastUpdateSeconds: lastUpdateSeconds, nowSeconds: CACurrentMediaTime())
+        where panes[side]?.state != .unknown(.stale) {
+            panes[side]?.state = .unknown(.stale)
+            updateTone()
+            scheduleAnnouncement()
         }
     }
 
