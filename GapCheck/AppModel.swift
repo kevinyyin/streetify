@@ -13,6 +13,10 @@ final class AppModel {
         var tracks: [Track] = []
         var timestampSeconds = 0.0
         var state: DirectionState = .unknown(.stale)
+        /// Display only, from the segmenter; may lag the image by a frame.
+        var masks: [SegmentMask] = []
+        /// Cars the screen draws red; kept from frame to frame (see `redTrackIds`).
+        var redTrackIds: Set<Int> = []
     }
 
     var panes: [Side: Pane] = [.left: Pane(), .right: Pane()]
@@ -29,11 +33,14 @@ final class AppModel {
     @ObservationIgnored private var lastAnnounced: [Side: DirectionState] = [.left: .unknown(.stale), .right: .unknown(.stale)]
     @ObservationIgnored private var isAnnouncementScheduled = false
     private(set) var isLevel = false
+    /// False until a frame has reported the tilt; before that (or with no camera, as in the simulator) the tone is silent.
+    @ObservationIgnored private var hasLevelReading = false
     private(set) var tiltErrorDegrees = 90.0
     @ObservationIgnored private var lastUpdateSeconds: [Side: Double] = [:]
     @ObservationIgnored private var watchdog: Timer?
 
     func start() {
+        speech.currentStates = { [unowned self] in self.panes.mapValues(\.state) }
         try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
         updateTone()
@@ -76,7 +83,13 @@ final class AppModel {
         pipelines[side]?.stop()
         guard let detector = try? Detector() else { return } // no model: no pipeline, the side stays Unknown
         let pipeline = Pipeline(side: side, source: source, detector: detector)
-        pipeline.onUpdate = { [weak self] in self?.show($0) }
+        // Masks are for the screen only; the segmenter skips frames while busy, so it never holds up the warnings.
+        let segmenter = try? Segmenter()
+        segmenter?.onMasks = { [weak self] masks in DispatchQueue.main.async { self?.panes[side]?.masks = masks } }
+        pipeline.onUpdate = { [weak self] update in
+            if let frame = update.frame { segmenter?.submit(frame) }
+            self?.show(update)
+        }
         pipelines[side] = pipeline
         pipeline.start()
     }
@@ -90,7 +103,10 @@ final class AppModel {
         DispatchQueue.main.async {
             var pane = self.panes[update.side] ?? Pane()
             if let image { pane.image = image }
-            if let t = update.frame?.timestampSeconds { pane.timestampSeconds = t }
+            if let t = update.frame?.timestampSeconds {
+                pane.timestampSeconds = t
+                pane.redTrackIds = redTrackIds(update.tracks, atSeconds: t, wasRed: pane.redTrackIds)
+            }
             pane.detections = update.detections
             pane.tracks = update.tracks
             pane.state = update.state
@@ -100,6 +116,7 @@ final class AppModel {
             if let frame = update.frame {
                 if frame.isLevel && !self.isLevel { self.haptics.play(.ready) }
                 self.isLevel = frame.isLevel
+                self.hasLevelReading = true
                 self.tiltErrorDegrees = frame.tiltErrorDegrees
             }
             self.updateTone()
@@ -118,6 +135,7 @@ final class AppModel {
     }
 
     private func updateTone() {
+        guard hasLevelReading else { return tone.apply(ToneSettings(isOn: false, frequencyHz: 0)) }
         tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees))
     }
 

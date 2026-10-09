@@ -30,6 +30,29 @@ final class TrackTests: XCTestCase {
         }
     }
 
+    /// Shrinking slowly over the 4 s direction window is driving away (screen only); a parked car's jitter is neither
+    /// way, and it is at a standstill.
+    func testSlowlyShrinkingCarIsDrivingAway() {
+        XCTAssertEqual(trackWithDirection(heightAt: { 0.08 * (1 - 0.06 * $0) }).travel, .away)
+        XCTAssertEqual(trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }).travel, .toward)
+        for seed in 1...100 {
+            var parked = makeTrack(parkedHeights(height: 192 / 1920, noisePixels: 1.7, seed: UInt64(seed)))
+            parked.directionBoxes = parked.heights.map { ($0.t, CGRect(x: 0.4, y: 0.4, width: 2 * $0.h, height: $0.h)) }
+            XCTAssertEqual(parked.travel, .unclear, "seed \(seed)")
+            XCTAssertTrue(parked.isStill, "seed \(seed)")
+        }
+    }
+
+    /// A car crossing in front keeps its height but is not at a standstill.
+    func testCrossingCarIsNotStill() {
+        var crossing = makeTrack(parkedHeights(height: 0.1, noisePixels: 0, seed: 1))
+        crossing.directionBoxes = (0...20).map { i in
+            let t = Double(i) / Config.processFps
+            return (t, CGRect(x: 0.2 + 0.2 * t, y: 0.4, width: 0.2, height: 0.1))
+        }
+        XCTAssertFalse(crossing.isStill)
+    }
+
     func testIoUMatchKeepsId() {
         let tracker = Tracker()
         let a = tracker.update([car(CGRect(x: 0.5, y: 0.5, width: 0.1, height: 0.05))], atSeconds: 0, orientation: .up)
