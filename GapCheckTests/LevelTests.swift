@@ -50,3 +50,16 @@ final class VideoOrientationTests: XCTestCase {
         XCTAssertEqual(videoOrientation(CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: 1920, ty: 1080)), .down)
     }
 }
+
+final class LevelBufferTests: XCTestCase {
+    /// A wobble near the 8° limit must not flip level/not level every frame.
+    func testLevelBufferStopsFlipping() {
+        var wasLevel = true
+        let results = [7.0, 9.0, 7.0, 5.0].map { degrees -> Bool in
+            let p = degrees * .pi / 180
+            wasLevel = isLevel(attitude(gravityX: 0, gravityY: -cos(p), gravityZ: sin(p)), wasLevel: wasLevel)
+            return wasLevel
+        }
+        XCTAssertEqual(results, [true, false, false, true])
+    }
+}

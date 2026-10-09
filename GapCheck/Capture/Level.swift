@@ -28,6 +28,14 @@ struct Attitude: Equatable {
     var tiltErrorDegrees: Double { max(abs(pitchDegrees), abs(rollDegrees)) }
 }
 
+/// Level with a buffer: once not level, it counts as level again only within the tighter return limits,
+/// so a hand wobbling near the limit doesn't flip the state every frame.
+func isLevel(_ a: Attitude, wasLevel: Bool) -> Bool {
+    let pitchLimit = wasLevel ? Config.levelPitchToleranceDegrees : Config.levelReturnPitchToleranceDegrees
+    let rollLimit = wasLevel ? Config.levelRollToleranceDegrees : Config.levelReturnRollToleranceDegrees
+    return abs(a.pitchDegrees) <= pitchLimit && abs(a.rollDegrees) <= rollLimit
+}
+
 /// Gravity in device coordinates (CMDeviceMotion.gravity) to hold, pitch and roll.
 func attitude(gravityX x: Double, gravityY y: Double, gravityZ z: Double) -> Attitude {
     let hold: Hold = abs(x) > abs(y)

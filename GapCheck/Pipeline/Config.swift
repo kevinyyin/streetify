@@ -14,6 +14,9 @@ enum Config {
     static let levelPitchToleranceDegrees = 8.0
     /// Max rotation about the camera axis.
     static let levelRollToleranceDegrees = 10.0
+    /// Once not level, it counts as level again only within these, so a wobble near the limit doesn't flip it.
+    static let levelReturnPitchToleranceDegrees = 6.0
+    static let levelReturnRollToleranceDegrees = 8.0
 
     /// COCO classes that count as vehicles.
     static let vehicleLabels: Set<String> = ["car", "truck", "bus", "motorcycle", "bicycle"]
