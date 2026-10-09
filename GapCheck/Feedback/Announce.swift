@@ -4,9 +4,34 @@ enum HapticKind: Equatable {
     case approaching, clear, unknown, ready
 }
 
+/// Which news may cut in on which: a car beats a problem beats "no cars".
+enum SpeechPriority: Int, Comparable {
+    case noCars, problem, car
+    static func < (a: SpeechPriority, b: SpeechPriority) -> Bool { a.rawValue < b.rawValue }
+}
+
+/// One sentence about one side (nil = both sides, e.g. the status the user asked for).
+struct Utterance: Equatable {
+    let side: Side?
+    let text: String
+    let priority: SpeechPriority
+}
+
+func utterance(_ side: Side, _ state: DirectionState) -> Utterance {
+    let priority: SpeechPriority
+    switch state {
+    case .approaching: priority = .car
+    case .unknown: priority = .problem
+    case .clear: priority = .noCars
+    }
+    return Utterance(side: side, text: Strings.sentence(side, state), priority: priority)
+}
+
 struct FeedbackEvent: Equatable {
     let haptic: HapticKind
-    let text: String
+    /// Cars first, then problems, then "no cars"; the speech queue plays them one at a time.
+    let utterances: [Utterance]
+    var text: String { utterances.map(\.text).joined(separator: ". ") }
 }
 
 /// What speech cares about. There is no live countdown: a car's time is spoken when first measured and once more
@@ -45,33 +70,21 @@ func announcedBaseline(previous: [Side: DirectionState], current: [Side: Directi
     return baseline
 }
 
-/// One haptic and one sentence for whatever changed, or nil when nothing did.
+/// One sentence per side that changed (cars first) and one vibration for the whole situation, or nil.
 func announce(previous: [Side: DirectionState], current: [Side: DirectionState]) -> FeedbackEvent? {
     // Not level is the tone's job: never spoken (the baseline still records it, so leveling out is announced).
-    let changed = [Side.left, .right].compactMap { side -> (Side, DirectionState)? in
+    let changed = [Side.left, .right].compactMap { side -> Utterance? in
         guard let now = current[side], now != .unknown(.notLevel), isChange(from: previous[side], to: now) else { return nil }
-        return (side, now)
+        return utterance(side, now)
     }
     guard !changed.isEmpty else { return nil }
-    var spoken = changed
-    // Approaching and Unknown override Clear: "No cars seen left" must not replace a warning about the right.
-    if changed.contains(where: { $0.1 == .clear }) {
-        spoken += [Side.left, .right].compactMap { side in
-            guard !changed.contains(where: { $0.0 == side }), let now = current[side], now != .clear, now != .unknown(.notLevel)
-            else { return nil }
-            return (side, now)
-        }
-    }
-    var sentences: [String] = []
-    for (side, state) in spoken {
-        let s = Strings.sentence(side, state)
-        if !sentences.contains(s) { sentences.append(s) }
-    }
-    let states = spoken.map(\.1)
+    let states = current.values
+    // The "no cars" hum only when no side has a car or a problem.
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
-        : states.contains(where: { if case .unknown = $0 { true } else { false } }) ? .unknown
+        : states.contains(where: { if case .unknown = $0 { $0 != .unknown(.notLevel) } else { false } }) ? .unknown
         : .clear
-    return FeedbackEvent(haptic: haptic, text: sentences.joined(separator: ". "))
+    let ordered = [SpeechPriority.car, .problem, .noCars].flatMap { p in changed.filter { $0.priority == p } }
+    return FeedbackEvent(haptic: haptic, utterances: ordered)
 }
 
 /// After startup, a side still in its initial stale state was never announced (it started that way).

@@ -64,6 +64,8 @@ enum Config {
     static let closeWarningSeconds = 5.0
     /// After a close warning, a time this much higher is treated as the next car and spoken; less is the same car.
     static let newCarJumpSeconds = 3.0
+    /// A sentence not reported finished after this long counts as done, so the next one can play.
+    static let maxUtteranceSeconds = 4.0
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 
