@@ -8,6 +8,11 @@ func staleSides(lastUpdateSeconds: [Side: Double], nowSeconds: Double) -> [Side]
     }
 }
 
+/// What a silent side reads: the camera fault when one is known, else stale.
+func silentSideState(fault: UnknownReason?) -> DirectionState {
+    .unknown(fault ?? .stale)
+}
+
 struct PipelineUpdate {
     let side: Side
     let frame: Frame?
@@ -39,6 +44,9 @@ final class Pipeline {
     /// Frame gaps go stale here, on frame timestamps; silence (no updates at all) goes stale in AppModel's watchdog.
     func start() { source.start() }
     func stop() { source.stop() }
+
+    /// The live watchdog found this side silent; the next Clear waits the full hold. Call from any queue.
+    func noteStale() { queue.async { self.decider.noteExternalStale() } }
 
     private func process(_ frame: Frame) {
         // A frame whose detection throws never reaches Decide, so the watchdog or the next gap reports stale.

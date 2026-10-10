@@ -6,6 +6,10 @@ enum Side {
 
 enum UnknownReason: Equatable {
     case stale, notLevel, tooDark, tooBright, covered, viewBlocked
+    /// Camera faults the user can act on; AppModel sets them, Decide never does.
+    case noPermission, unsupported, interrupted, overheated
+    /// No moving vehicle seen lately, so an empty picture says nothing about the road.
+    case noRoadSeen
 }
 
 /// How soon an approaching car arrives, as far as can be told.
@@ -36,8 +40,11 @@ struct FrameObservation {
 /// The ordered rules for one direction. Starts Unknown; every failure ends Unknown, never Clear.
 final class Decider {
     private(set) var state: DirectionState = .unknown(.stale)
+    /// Frame time a moving vehicle last showed this camera sees a road. Internal so tests can start with a road seen.
+    var roadSeenSeconds: Double?
     private var lastFrameSeconds: Double?
     private var lastFiredSeconds = -Double.infinity
+    private var lastApproachSeconds: Double?
 
     /// Rule 1. Live: the watchdog calls this on host time. Replay: `update` calls it per frame to catch gaps.
     @discardableResult
@@ -49,12 +56,22 @@ final class Decider {
         return state
     }
 
-    /// Rules 2 to 6 for a frame whose detection succeeded.
+    /// The live watchdog (host clock) found this side silent. Re-arms the hold on frame time, so the next Clear
+    /// still waits `Config.clearHoldSeconds` instead of coming back with the next frame.
+    func noteExternalStale() {
+        state = .unknown(.stale)
+        if let last = lastFrameSeconds { lastFiredSeconds = last }
+    }
+
+    /// Rules 2 to 7 for a frame whose detection succeeded.
     func update(_ o: FrameObservation, tracks: [Track]) -> DirectionState {
         let t = o.timestampSeconds
         if lastFrameSeconds == nil { lastFiredSeconds = t } // having had no frames counts as rule 1 firing
         checkStale(nowSeconds: t)
         lastFrameSeconds = t
+        // Road evidence: a vehicle growing or shrinking travels along the camera axis, so this camera sees a road.
+        if o.isLevel, tracks.contains(where: { $0.travel != .unclear }) { roadSeenSeconds = t }
+        if let seen = roadSeenSeconds, t - seen > Config.roadEvidenceSeconds { roadSeenSeconds = nil }
         if let fired = firstFiringRule(o, tracks) {
             state = fired
             lastFiredSeconds = t
@@ -65,14 +82,18 @@ final class Decider {
     }
 
     private func firstFiringRule(_ o: FrameObservation, _ tracks: [Track]) -> DirectionState? {
-        if !o.isLevel { return .unknown(.notLevel) }
-        if o.quality.meanLuma < Config.minMeanLuma { return .unknown(.tooDark) }
-        if o.quality.meanLuma > Config.maxMeanLuma { return .unknown(.tooBright) }
-        if o.quality.laplacianVariance < Config.minLaplacianVariance { return .unknown(.covered) }
+        let t = o.timestampSeconds
+        if !o.isLevel {
+            // Tilting doesn't make a car that was just seen go away.
+            if let seen = lastApproachSeconds, t - seen <= Config.tiltCarMemorySeconds { return .approaching(.unmeasured) }
+            return .unknown(.notLevel)
+        }
+        if let reason = qualityProblem(o.quality) { return .unknown(reason) }
 
-        let approaching = tracks.map { $0.estimate(atSeconds: o.timestampSeconds) }
+        let approaching = tracks.map { $0.estimate(atSeconds: t) }
             .filter { $0.isTooNew || ($0.lowSeconds ?? .infinity) < Config.approachWindowSeconds }
         if !approaching.isEmpty {
+            lastApproachSeconds = t
             if let soonest = approaching.compactMap(\.pointSeconds).filter({ $0 < Config.approachWindowSeconds }).min() {
                 return .approaching(.seconds(Int(soonest.rounded())))
             }
@@ -85,6 +106,17 @@ final class Decider {
             return overlap.isNull ? sum : sum + overlap.width * overlap.height
         }
         if coveredArea / (o.tile.width * o.tile.height) > Config.blockedFraction { return .unknown(.viewBlocked) }
+        // Clear means "road seen and empty", not "nothing detected" (a wall, a hedge, indoors).
+        if roadSeenSeconds == nil { return .unknown(.noRoadSeen) }
         return nil
     }
+}
+
+/// Rule 3. A dark, flat picture is a covered lens, not night (a night street still has lights in it).
+func qualityProblem(_ q: ImageQuality) -> UnknownReason? {
+    let isFlat = q.laplacianVariance < Config.minLaplacianVariance
+    if isFlat && q.meanLuma <= Config.maxMeanLuma { return .covered }
+    if q.meanLuma < Config.minMeanLuma { return .tooDark }
+    if q.meanLuma > Config.maxMeanLuma { return .tooBright }
+    return nil
 }

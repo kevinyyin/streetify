@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import GapCheck
 
@@ -8,6 +9,16 @@ final class DecideTests: XCTestCase {
         FrameObservation(timestampSeconds: t, isLevel: level,
                     quality: ImageQuality(meanLuma: luma, laplacianVariance: variance), tile: tile)
     }
+
+    /// A Decider that has already seen a moving car, so an empty road can read "no cars".
+    private func seen() -> Decider {
+        let d = Decider()
+        d.roadSeenSeconds = 0
+        return d
+    }
+
+    /// Growing over the 4 s direction window, but with flat recent heights: proof of a road, not a warning.
+    private var movingTrack: Track { trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }) }
 
     /// Clean frames at 10 fps from `from` through `to`; returns the last state.
     @discardableResult
@@ -28,21 +39,21 @@ final class DecideTests: XCTestCase {
     }
 
     func testClearNeedsHold() {
-        let d = Decider()
+        let d = seen()
         XCTAssertEqual(feed(d, from: 0, through: 1.4), .unknown(.stale))
         XCTAssertEqual(d.update(obs(1.5), tracks: []), .clear)
     }
 
     /// Invariant 2: frames stop (or every detection throws, so Decide never updates) → Unknown, never Clear.
     func testNoFramesAfterClearGoesStale() {
-        let d = Decider()
+        let d = seen()
         XCTAssertEqual(feed(d, from: 0, through: 2.0), .clear)
         XCTAssertEqual(d.checkStale(nowSeconds: 2.29), .clear)
         XCTAssertEqual(d.checkStale(nowSeconds: 2.31), .unknown(.stale))
     }
 
     func testReplayGapIsStale() {
-        let d = Decider()
+        let d = seen()
         feed(d, from: 0, through: 2.0)
         XCTAssertEqual(d.update(obs(2.5), tracks: []), .unknown(.stale))
         XCTAssertEqual(feed(d, from: 2.6, through: 3.9), .unknown(.stale))
@@ -50,9 +61,27 @@ final class DecideTests: XCTestCase {
     }
 
     func testNotLevel() {
-        let d = Decider()
+        let d = seen()
         feed(d, from: 0, through: 2.0)
         XCTAssertEqual(d.update(obs(2.1, level: false), tracks: []), .unknown(.notLevel))
+    }
+
+    /// The live watchdog going stale re-arms the hold, so Clear can't come straight back with the next frame.
+    func testWatchdogStaleReArmsTheHold() {
+        let d = seen()
+        XCTAssertEqual(feed(d, from: 0, through: 2.0), .clear)
+        d.noteExternalStale()
+        XCTAssertEqual(d.update(obs(2.1), tracks: []), .unknown(.stale))
+        XCTAssertEqual(feed(d, from: 2.2, through: 3.4), .unknown(.stale))
+        XCTAssertEqual(d.update(obs(3.5), tracks: []), .clear)
+    }
+
+    /// Tilting right after a car was seen still reports the car (no time), then the tilt.
+    func testTiltKeepsACarJustSeen() {
+        let d = Decider()
+        guard case .approaching = d.update(obs(1.5), tracks: [approachingTrack]) else { return XCTFail("expected approach") }
+        XCTAssertEqual(d.update(obs(1.6, level: false), tracks: []), .approaching(.unmeasured))
+        XCTAssertEqual(d.update(obs(2.6, level: false), tracks: []), .unknown(.notLevel))
     }
 
     func testNotLevelBeatsApproaching() {
@@ -69,6 +98,11 @@ final class DecideTests: XCTestCase {
 
     func testCovered() {
         XCTAssertEqual(Decider().update(obs(0, variance: 5), tracks: []), .unknown(.covered))
+    }
+
+    /// A hand over the lens is dark and flat: "camera covered", not "too dark".
+    func testDarkAndFlatIsCovered() {
+        XCTAssertEqual(Decider().update(obs(0, luma: 0.03, variance: 2), tracks: []), .unknown(.covered))
     }
 
     func testApproachingSeconds() {
@@ -106,21 +140,31 @@ final class DecideTests: XCTestCase {
         let blocking = parkedTrack(CGRect(x: tile.minX, y: tile.minY, width: tile.width * 0.4, height: tile.height))
         XCTAssertEqual(Decider().update(obs(1.5), tracks: [blocking]), .unknown(.viewBlocked))
         let partial = parkedTrack(CGRect(x: tile.minX, y: tile.minY, width: tile.width * 0.2, height: tile.height))
-        XCTAssertEqual(feed(Decider(), from: 1.5, through: 3.0, tracks: [partial]), .clear)
+        XCTAssertEqual(feed(seen(), from: 1.5, through: 3.0, tracks: [partial]), .clear)
     }
 
     func testHoldKeepsPreviousState() {
-        let d = Decider()
+        let d = seen()
         feed(d, from: 0, through: 1.4)
         guard case .approaching = d.update(obs(1.5), tracks: [approachingTrack]) else { return XCTFail("expected approach") }
         guard case .approaching = feed(d, from: 1.6, through: 2.9) else { return XCTFail("approach should be held") }
         XCTAssertEqual(d.update(obs(3.0), tracks: []), .clear)
     }
 
+    /// Indoors, facing a wall or a hedge: nothing is detected, but that isn't "no cars" until a moving vehicle has
+    /// shown there is a road; and the evidence runs out.
+    func testNoCarsNeedsARoadSeen() {
+        let d = Decider()
+        XCTAssertEqual(feed(d, from: 0, through: 3.0), .unknown(.noRoadSeen))
+        XCTAssertEqual(feed(d, from: 3.1, through: 4.3, tracks: [movingTrack]), .unknown(.noRoadSeen)) // clear hold
+        XCTAssertEqual(feed(d, from: 4.4, through: 4.7, tracks: [movingTrack]), .clear)
+        XCTAssertEqual(d.update(obs(4.8 + Config.roadEvidenceSeconds), tracks: []), .unknown(.noRoadSeen))
+    }
+
     /// A big parked car beside the tile must not block Clear forever.
     func testNearParkedCarAllowsClear() {
         let parked = parkedTrack(CGRect(x: 0, y: 0.4, width: 0.2, height: 0.15))
-        XCTAssertEqual(feed(Decider(), from: 1.5, through: 3.0, tracks: [parked]), .clear)
+        XCTAssertEqual(feed(seen(), from: 1.5, through: 3.0, tracks: [parked]), .clear)
     }
 }
 
@@ -129,5 +173,14 @@ final class WatchdogTests: XCTestCase {
     func testSilentSideGoesStale() {
         XCTAssertEqual(staleSides(lastUpdateSeconds: [.left: 10, .right: 10.2], nowSeconds: 10.31), [.left])
         XCTAssertEqual(staleSides(lastUpdateSeconds: [.left: 10], nowSeconds: 10.29), [])
+    }
+
+    /// A silent side says why when the reason is known (permission, heat, camera in use).
+    func testSilentSideReadsItsFault() {
+        XCTAssertEqual(silentSideState(fault: nil), .unknown(.stale))
+        XCTAssertEqual(silentSideState(fault: .overheated), .unknown(.overheated))
+        XCTAssertEqual(interruptionFault(.videoDeviceNotAvailableDueToSystemPressure), .overheated)
+        XCTAssertEqual(interruptionFault(.videoDeviceInUseByAnotherClient), .interrupted)
+        XCTAssertEqual(interruptionFault(nil), .interrupted)
     }
 }

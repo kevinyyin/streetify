@@ -14,13 +14,16 @@ Time to arrival = box height / change in height per second. Height, because hand
 
 **Track:** match by IoU, else nearest center within `Config.matchRadius`. Keep height history over `Config.historySeconds` (start 1.5 s); fit a line for time to arrival.
 
-**Decide**, first rule that fires wins:
+**Decide**, first rule that fires wins (rules 2, 3 and 6 changed 2026-10-09; the owner chose them from the `feature-fixing` branch):
 1. No frame within `Config.staleFrameTimeout` (start 300 ms): Unknown `stale`. Runs on a timer.
-2. Phone not level (live only): Unknown `notLevel`.
-3. Too dark, too bright, or covered (low Laplacian variance): Unknown with that reason.
+2. Phone not level (live only): Unknown `notLevel`, unless a car was Approaching within `Config.tiltCarMemorySeconds` (then Approaching, unmeasured).
+3. Flat (low Laplacian variance) and not overexposed: `covered`; else too dark or too bright: Unknown with that reason.
 4. Any track arriving within `Config.approachWindowSeconds` (start 20 s), or too new to measure: Approaching, with the smallest time or "far".
 5. Stationary vehicle covering over `Config.blockedFraction` of the center tile: Unknown `viewBlocked`.
-6. Clear once rules 1 to 5 haven't fired for `Config.clearHoldSeconds` (start 1.5 s). Until then, keep the previous state.
+6. No moving vehicle (growing or shrinking over `Config.directionWindowSeconds`) seen in `Config.roadEvidenceSeconds`: Unknown `noRoadSeen`. Clear means "road seen and empty", not "nothing detected".
+7. Clear once rules 1 to 6 haven't fired for `Config.clearHoldSeconds` (start 1.5 s). Until then, keep the previous state.
+
+AppModel adds camera faults outside Decide: `noPermission`, `unsupported`, `interrupted`, `overheated` (session notifications, system pressure). A silent side reads its fault, else `stale`. When the watchdog fires it tells the Decider, which re-arms the clear hold on frame time.
 
 ## Decisions (approved 2026-10-08)
 

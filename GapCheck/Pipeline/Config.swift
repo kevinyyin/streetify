@@ -47,10 +47,14 @@ enum Config {
 
     /// No processed frame for this long means Unknown (stale).
     static let staleFrameTimeoutSeconds = 0.3
-    /// Clear only after rules 1 to 5 have been quiet this long.
+    /// Clear only after rules 1 to 6 have been quiet this long.
     static let clearHoldSeconds = 1.5
     /// Stationary vehicles covering more than this fraction of the tile block the view.
     static let blockedFraction = 0.3
+    /// With no moving vehicle seen for this long, an empty picture no longer reads "no cars" but "no road seen".
+    static let roadEvidenceSeconds = 300.0
+    /// While tilted, a car seen this recently is still reported ("car", no time).
+    static let tiltCarMemorySeconds = 1.0
 
     /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
@@ -71,9 +75,10 @@ enum Config {
 
     /// Screen only: a car whose time to arrival is this or less turns red; Decide and speech don't use it.
     static let dangerHighlightSeconds = 8.0
-    /// Screen only: height history for telling a car driving away; longer than historySeconds so slow shrinking shows.
+    /// Height history for telling which way a car travels (screen colors and Decide's road evidence); longer than
+    /// historySeconds so slow change shows.
     static let directionWindowSeconds = 4.0
-    /// Screen only: a car shrinking (growing) at least this fraction of its height per second is driving away (toward us).
+    /// A car shrinking (growing) at least this fraction of its height per second is driving away (toward us).
     static let awayMinShrinkPerSecond = 0.03
     /// Screen only: a car whose center moves less than this many box widths per second is at a standstill.
     static let stillMaxBoxWidthsPerSecond = 0.1
