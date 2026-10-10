@@ -112,37 +112,45 @@ struct ContentView: View {
         .accessibilityLabel("Replay \(name) clip")
     }
 
-    /// Each car's outline tinted red (close, or in a close line of cars), yellow (facing us) or green (driving away), with its id
-    /// and time to arrival ("new" while too new to measure, "-" when not closing). A car with no outline yet gets a box.
-    /// Outlines matched to no car (people, cars not tracked yet) are drawn faint gray.
+    /// Each car's outline tinted red (close, or in a close line of cars), yellow (facing us) or green (driving away).
+    /// Outlines arrive a frame or two late, so each is carried along with its car to where the car is now. A car with
+    /// no outline gets a box. Red cars get their time to arrival, closest first, skipping any label that would overlap
+    /// one already drawn. Outlines matched to no car (people, cars not tracked yet) are drawn faint gray.
     private func drawTracks(_ tracks: [Track], masks: [SegmentMask], redIds: Set<Int>, atSeconds t: Double, in ctx: GraphicsContext, size: CGSize) {
         // Vision boxes have their origin bottom-left.
         func rect(_ box: CGRect) -> CGRect {
             CGRect(x: box.minX * size.width, y: (1 - box.maxY) * size.height, width: box.width * size.width, height: box.height * size.height)
         }
-        func fill(_ mask: SegmentMask, _ color: Color, opacity: Double) {
+        func fill(_ mask: SegmentMask, at box: CGRect, _ color: Color, opacity: Double) {
             var layer = ctx
             layer.opacity = opacity
             layer.addFilter(.colorMultiply(color))
-            layer.draw(Image(decorative: mask.image, scale: 1), in: rect(mask.box))
+            layer.draw(Image(decorative: mask.image, scale: 1), in: rect(box))
         }
         var unused = Set(masks.indices)
-        for track in tracks {
-            let e = track.estimate(atSeconds: t)
-            let color = highlight(track, isRed: redIds.contains(track.id)).color
-            let mask = unused.filter { iou(masks[$0].box, track.box) >= 0.3 }.max { iou(masks[$0].box, track.box) < iou(masks[$1].box, track.box) }
+        var labels: [CGRect] = []
+        for track in tracks.sorted(by: { $0.box.height > $1.box.height }) {
+            let isRed = redIds.contains(track.id)
+            let color = highlight(track, isRed: isRed).color
+            let then = masks.first.flatMap { track.box(atSeconds: $0.timestampSeconds) } ?? track.box
+            let mask = unused.filter { iou(masks[$0].box, then) >= 0.3 }.max { iou(masks[$0].box, then) < iou(masks[$1].box, then) }
             if let mask {
                 unused.remove(mask)
-                fill(masks[mask], color, opacity: 0.55)
+                fill(masks[mask], at: carried(masks[mask].box, from: then, to: track.box), color, opacity: 0.55)
             } else {
                 ctx.stroke(Path(rect(track.box)), with: .color(color), lineWidth: 2)
             }
-            let time = e.isTooNew ? "new" : e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "-"
-            let r = rect(track.box)
-            ctx.draw(Text("\(track.id)  \(time)").font(.caption.bold()).foregroundStyle(color),
-                     at: CGPoint(x: r.minX, y: r.minY - 2), anchor: .bottomLeading)
+            guard isRed else { continue }
+            let e = track.estimate(atSeconds: t)
+            let text = ctx.resolve(Text(e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "car")
+                .font(.caption.bold()).foregroundStyle(color))
+            let r = rect(track.box), textSize = text.measure(in: size)
+            let label = CGRect(x: r.minX, y: r.minY - 2 - textSize.height, width: textSize.width, height: textSize.height)
+            guard !labels.contains(where: { $0.intersects(label) }) else { continue }
+            labels.append(label)
+            ctx.draw(text, in: label)
         }
-        for i in unused { fill(masks[i], .gray, opacity: 0.35) }
+        for i in unused { fill(masks[i], at: masks[i].box, .gray, opacity: 0.35) }
     }
 }
 

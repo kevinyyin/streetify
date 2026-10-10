@@ -7,6 +7,8 @@ struct SegmentMask {
     let box: CGRect
     /// White where the object is, transparent elsewhere; the screen tints it.
     let image: CGImage
+    /// The frame it was computed from. Masks arrive a frame or two late, so the screen moves each one with its car.
+    var timestampSeconds = 0.0
 }
 
 /// YOLO11n-seg on its own queue, for the screen. A frame that arrives while it is busy is skipped, so it never
@@ -50,6 +52,7 @@ final class Segmenter {
         return decodeSegments(predictions: floats(predictions), protos: floats(protos),
                               anchorCount: predictions.shape[2].intValue, protoSize: protos.shape[3].intValue,
                               imageWidth: isSideways ? h : w, imageHeight: isSideways ? w : h)
+            .map { var m = $0; m.timestampSeconds = frame.timestampSeconds; return m }
     }
 }
 
@@ -116,4 +119,22 @@ private func rgbaImage(_ pixels: [UInt8], width: Int, height: Int) -> CGImage? {
 /// An output array as Floats, in logical order whatever its strides or element type.
 private func floats(_ array: MLMultiArray) -> [Float] {
     (array.dataType == .float32 ? MLShapedArray<Float>(array) : MLShapedArray<Float>(converting: array)).scalars
+}
+
+extension Track {
+    /// Where the car was at `t`, from the direction window; nil if it wasn't seen within a frame of then.
+    func box(atSeconds t: Double) -> CGRect? {
+        guard let nearest = directionBoxes.min(by: { abs($0.t - t) < abs($1.t - t) }),
+              abs(nearest.t - t) <= 1.5 / Config.processFps else { return nil }
+        return nearest.box
+    }
+}
+
+/// `rect` drawn relative to a car whose box was `old`, carried along to the car's box now (`new`): same offset and
+/// size as a fraction of the car's box, so a late mask lands on the car instead of where it was.
+func carried(_ rect: CGRect, from old: CGRect, to new: CGRect) -> CGRect {
+    guard old.width > 0, old.height > 0 else { return rect }
+    let sx = new.width / old.width, sy = new.height / old.height
+    return CGRect(x: new.minX + (rect.minX - old.minX) * sx, y: new.minY + (rect.minY - old.minY) * sy,
+                  width: rect.width * sx, height: rect.height * sy)
 }
