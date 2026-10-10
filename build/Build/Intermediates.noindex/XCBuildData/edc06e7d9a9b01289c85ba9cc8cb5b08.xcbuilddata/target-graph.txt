@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'GapCheckTests' in project 'GapCheck'
-➜ Explicit dependency on target 'GapCheck' in project 'GapCheck'
-Target 'GapCheck' in project 'GapCheck' (no dependencies)

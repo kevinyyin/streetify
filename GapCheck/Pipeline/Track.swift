@@ -18,11 +18,14 @@ struct Track {
     let firstSeenSeconds: Double
     var lastSeenSeconds: Double
     var heights: [(t: Double, h: Double)]
-    /// Boxes over `Config.directionWindowSeconds`, for the screen's colors only. Decide never reads them.
+    /// Boxes over `Config.directionWindowSeconds`: the screen's colors, and Decide's road and aim checks.
     var directionBoxes: [(t: Double, box: CGRect)] = []
+    /// What it is; a track only ever matches detections of the same kind.
+    var mover: Mover = .car
 
     /// Which way the car is going over the longer direction window: surely (even at the confidence bound) and at least
-    /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Display only.
+    /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither.
+    /// Decide takes a vehicle going either way as proof the camera looks along a road.
     var travel: Travel {
         let s = directionBoxes.map { (t: $0.t, h: Double($0.box.height)) }
         let n = Double(s.count)
@@ -39,6 +42,19 @@ struct Track {
     }
 
     var isDrivingAway: Bool { travel == .away }
+
+    /// A vehicle sliding across the picture without growing: the camera looks across the road, not along it. Cars
+    /// coming along the road grow as they drift sideways; far cross streets and cars right at the curb are excluded
+    /// by height.
+    var isCrossingView: Bool {
+        guard mover != .person, let first = directionBoxes.first, let last = directionBoxes.last else { return false }
+        let seconds = last.t - first.t
+        guard seconds >= Config.misaimMinSeconds, first.box.height > 0,
+              last.box.height >= Config.misaimMinHeightFraction, last.box.height <= Config.misaimMaxHeightFraction,
+              abs(last.box.height / first.box.height - 1) <= Config.misaimMaxGrowthFraction else { return false }
+        let sideways = abs(last.box.midX - first.box.midX) / max(last.box.width, 1e-6) / seconds
+        return sideways >= Config.misaimSidewaysBoxWidthsPerSecond
+    }
 
     /// At a standstill: over at least `Config.historySeconds`, neither growing nor shrinking for sure, and its center
     /// moved less than `Config.stillMaxBoxWidthsPerSecond` box widths per second. Display only.
@@ -83,6 +99,8 @@ final class Tracker {
             tracks = [] // heights from the old hold measure a different axis
             self.orientation = orientation
         }
+        // A cyclist is a person box on a bicycle box; matching only within a kind keeps them from swapping tracks.
+        let movers = detections.map { labelMover($0.label) ?? .car }
         var freeTracks = Set(tracks.indices)
         var freeDetections = Set(detections.indices)
         var pairs: [(track: Int, detection: Int)] = []
@@ -93,10 +111,13 @@ final class Tracker {
                 freeDetections.remove(j)
             }
         }
-        claim(freeTracks.flatMap { i in freeDetections.map { j in (i, j, iou(tracks[i].box, detections[j].box)) } }
-            .filter { $0.2 >= Config.matchIoU }.sorted { $0.2 > $1.2 })
-        claim(freeTracks.flatMap { i in freeDetections.map { j in (i, j, boxDistance(tracks[i].box, detections[j].box)) } }
-            .filter { $0.2 <= Config.matchRadiusBoxSizes }.sorted { $0.2 < $1.2 })
+        func scored(_ score: (CGRect, CGRect) -> Double) -> [(Int, Int, Double)] {
+            freeTracks.flatMap { i in
+                freeDetections.filter { tracks[i].mover == movers[$0] }.map { j in (i, j, score(tracks[i].box, detections[j].box)) }
+            }
+        }
+        claim(scored(iou).filter { $0.2 >= Config.matchIoU }.sorted { $0.2 > $1.2 })
+        claim(scored(boxDistance).filter { $0.2 <= Config.matchRadiusBoxSizes }.sorted { $0.2 < $1.2 })
 
         for (i, j) in pairs {
             let box = detections[j].box
@@ -110,7 +131,7 @@ final class Tracker {
         for j in freeDetections.sorted() {
             let box = detections[j].box
             tracks.append(Track(id: nextId, box: box, firstSeenSeconds: t, lastSeenSeconds: t, heights: [(t, box.height)],
-                                directionBoxes: [(t, box)]))
+                                directionBoxes: [(t, box)], mover: movers[j]))
             nextId += 1
         }
         tracks.removeAll { t - $0.lastSeenSeconds > Config.trackLostSeconds }

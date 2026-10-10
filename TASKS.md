@@ -33,7 +33,7 @@
 - [ ] Both directions work live and on replay. Stretch work only after this.
 
 ## Phase 3: feedback (hours 18 to 26)
-- [x] Strings.swift (banned-words test deferred by decision, 2026-10-08)
+- [x] Strings.swift (banned-words test added 2026-10-09)
 - [x] Haptics, tone, speech (not verified on device)
 - [x] State-change test
 - [x] Feedback redesign: one job per signal (2026-10-09) (not verified on device)
@@ -42,6 +42,21 @@
 ## Debug overlay
 - [x] Segmentation outlines (YOLO11n-seg, screen only, own queue, skips frames when busy) tinted red ≤ 8 s, yellow facing us, green driving away (2026-10-09) (not verified on device: speed and heat with two cameras)
 - [x] Red sticks to a car until it leaves the picture or stands still with no red car ahead in its line; cars coming behind a red car are red too; direction (green) judged over 4 s (2026-10-09)
+
+## Review fixes (approved 2026-10-09; written on Windows, not yet built: run the tests on a Mac)
+- [x] Stop tracking build/ (history still holds it; rewriting needs a force-push, owner's call)
+- [x] Never silent: "Streetify paused" on leaving the foreground, fresh announce on return, heartbeat tick while "no cars", volume-0 buzz (not verified on device)
+- [x] Camera faults say why: no permission, unsupported, camera in use, too hot; session restarts after a runtime error (not verified on device)
+- [x] "No cars" needs a road seen: Unknown "no road seen" until a moving vehicle in the last 5 min
+- [x] Partly covered lens: per-cell tile check; dark and flat reads "covered", not "too dark" (thresholds: calibrate on Footage)
+- [x] Misaimed: face on the front camera, crossing traffic, compass drift from the street heading; tone guides back (not verified on device)
+- [x] People and cyclists tracked; Approaching once measured; speech names car / bike / person
+- [x] Tilt keeps a car seen in the last second
+- [x] Watchdog stale re-arms the clear hold; preview and segmentation off with VoiceOver (unless `-showOverlay`) and off the pipeline's path
+- [x] "close" instead of "0 seconds"; banned-words test (invariant 1)
+- [x] Screen: feeds cropped to the road band, gray "no cars" bar, white for cars leaving, legend, hold instructions on first launch and long press
+- [ ] Build and run all tests on a Mac; fix what breaks
+- [ ] On device: pause speech after side button, compass heading sign, face check, heat with preview off
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)

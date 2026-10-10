@@ -79,6 +79,30 @@ final class TrackTests: XCTestCase {
         XCTAssertEqual(tracker.update([], atSeconds: 0.6, orientation: .up).count, 0)
     }
 
+    /// A cyclist's person box and bicycle box keep their own tracks, even overlapping.
+    func testTracksMatchOnlyTheirOwnKind() {
+        let tracker = Tracker()
+        let box = CGRect(x: 0.5, y: 0.5, width: 0.1, height: 0.05)
+        let a = tracker.update([car(box)], atSeconds: 0, orientation: .up)
+        let b = tracker.update([Detection(box: box, label: "person", confidence: 0.9)], atSeconds: 0.1, orientation: .up)
+        XCTAssertNotEqual(b.first { $0.mover == .person }?.id, a[0].id)
+        XCTAssertEqual(Set(b.map(\.mover)), [.car, .person])
+    }
+
+    /// Sliding across the picture without growing reads as crossing; coming along the road (growing) does not.
+    func testCrossingView() {
+        var crossing = makeTrack(parkedHeights(height: 0.1, noisePixels: 0, seed: 1))
+        crossing.directionBoxes = (0...10).map { i in
+            let t = Double(i) / 10
+            return (t, CGRect(x: 0.1 + 0.4 * t, y: 0.45, width: 0.2, height: 0.1))
+        }
+        XCTAssertTrue(crossing.isCrossingView)
+        XCTAssertFalse(trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }).isCrossingView)
+        var person = crossing
+        person.mover = .person
+        XCTAssertFalse(person.isCrossingView, "people walk across the view all the time")
+    }
+
     func testOrientationChangeResetsTracks() {
         let tracker = Tracker()
         let box = CGRect(x: 0.5, y: 0.5, width: 0.1, height: 0.05)

@@ -13,7 +13,7 @@ enum TrackHighlight: Equatable {
         switch self {
         case .danger: .red
         case .facing: .yellow
-        case .away: .green
+        case .away: .white // not green: green reads as "go"
         }
     }
 }

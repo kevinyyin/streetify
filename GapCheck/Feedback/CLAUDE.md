@@ -6,7 +6,8 @@ The user can't see the screen; this folder is the product for them. One job per 
 
 | Signal | Its only job | When |
 |---|---|---|
-| **Tone** | "The phone isn't level" | While not level; pitch rises toward level (200–500 Hz). Silent otherwise. Never used for cars. |
+| **Tone** | "The phone isn't pointed right" | While not level, or while misaimed by the compass; pitch rises toward aimed (200–500 Hz). Silent otherwise, and silent while a car is coming. Never used for cars. |
+| **Heartbeat** (one faint tap) | "Still watching" | After `Config.heartbeatSeconds` of quiet while a side reads "no cars", so silence never stands in for "no cars" (approved 2026-10-09) |
 | **Ready tap** (one crisp tap) | "Level, ready" | Once, when the phone becomes level |
 | **Speech** | What each direction is | One short sentence per side that changed, side first: "Right: car, 6 seconds", "Left: blocked", "Left: no cars" |
 | **Vibration with speech** | The whole situation | 3 sharp taps = a car is coming · 2 medium taps = a problem · 1 soft hum = no cars on either side |
@@ -16,13 +17,15 @@ The user can't see the screen; this folder is the product for them. One job per 
 
 - **Not level is never spoken and has no vibration**; the tone says it. The state after leveling out is always announced, even if it is the same as before the tilt.
 - **Never two voices:** with VoiceOver on, speech is a high-priority VoiceOver announcement; otherwise AVSpeechSynthesizer. Audio session `.playback` + `.mixWithOthers`.
-- **Tone and speech don't overlap:** the tone plays only while not level, and while not level nothing is spoken, with one exception: "camera stopped" is always spoken.
+- **Tone and speech mostly don't overlap:** while not level nothing is spoken except "camera stopped", camera faults, and a car seen in the last second ("Right: car", during which the tone pauses). "Turn the phone back toward the road" is spoken once and the tone then guides.
+- **Pause:** leaving the foreground speaks "Streetify paused" with the problem vibration; coming back resets both sides to Unknown and announces them afresh. A first launch speaks how to hold the phone; a long press (or the VoiceOver action) repeats it. Volume 0 gives one problem vibration and shows "Volume off". Not verified on device.
+- Phone-wide sentences ("Phone too hot", "Turn the screen away from you") are said once even when both sides report them.
 - A change means a change of kind, a change of Unknown reason (other than not level), far/unmeasured → timed, or timed → close (at or under `Config.closeWarningSeconds`, 5 s). Timed → far is silent. After a close warning, a time within 3 s of it is the same car (silent); a bigger jump or "far" is the next car and is spoken. So each car gets its first time and one close warning.
 - A too-new track is "Car left" with no distance; "far" is only for measured cars beyond 20 s.
 - **One sentence at a time, cars first** (approved 2026-10-09; changed 2026-10-09 to stop the chatter): priority is car > problem > no cars. A sentence only cuts in when it is more urgent; newer news about the side being spoken waits. While waiting, only the newest sentence per side is kept, and when its turn comes it is rebuilt from that side's state *now*: a car that already passed is never announced late, and nothing is said if it matches what that side last said. A sentence a car cut off is said again afterwards (also as it is by then). If a sentence is never reported finished, the next plays after 4 s. The status the user asks for (tap / VoiceOver) replaces everything.
 - The tone stays silent until a camera frame has reported the tilt (the simulator has no motion sensor; replay frames count as level).
 - Output is coalesced for 0.2 s; only sides that changed are spoken (no restating the other side).
 - Approaching and Unknown always override Clear: the vibration follows the whole situation, so the "no cars" hum only plays when neither side has a car or a problem.
-- All user-facing text in `Strings.swift`, side first: "Left: no cars", "Right: car, 4 seconds", "Right: car, far", "Right: car", "Left: blocked", "Left: camera covered", "Left: too dark", "Left: too bright", "Left: camera stopped". Never "safe", "go", "cross now", "clear to cross" or "all clear". (The banned-words test is deferred by decision on 2026-10-08.)
+- All user-facing text in `Strings.swift`, side first: "Left: no cars", "Right: car, 4 seconds", "Right: bike, far", "Right: person", "Right: car, close" (under 1 s), "Left: blocked", "Left: camera covered", "Left: too dark", "Left: too bright", "Left: camera stopped", "Left: camera in use", "Right: no road seen"; phone-wide: "Camera access is off. Turn it on in Settings", "This iPhone can't use both cameras", "Phone too hot", "Turn the screen away from you", "Turn the phone back toward the road". Never "safe", "go", "cross now", "clear to cross" or "all clear" (`BannedWordsTests`).
 - The tone must work on the speaker and on bone-conduction headphones. Check on device that speech never talks over VoiceOver.
 - Test: each state change gives the right vibration and text; no change gives nothing; not level gives only the tone.

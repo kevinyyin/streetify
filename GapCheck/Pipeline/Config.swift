@@ -18,10 +18,14 @@ enum Config {
     static let levelReturnPitchToleranceDegrees = 6.0
     static let levelReturnRollToleranceDegrees = 8.0
 
-    /// COCO classes that count as vehicles.
+    /// COCO classes that count as vehicles; speech calls them "car" unless they are bikes.
     static let vehicleLabels: Set<String> = ["car", "truck", "bus", "motorcycle", "bicycle"]
-    /// COCO classes that can hide the road (rule 5) but are never tracked as cars.
-    static let blockerLabels: Set<String> = ["person"]
+    /// Vehicles spoken as "bike".
+    static let bikeLabels: Set<String> = ["motorcycle", "bicycle"]
+    /// COCO classes tracked as people: coming only once measured; otherwise they hide the road (rule 7).
+    static let personLabels: Set<String> = ["person"]
+    /// Label given to the front camera's face boxes; never tracked.
+    static let faceLabel = "face"
     /// Detections below this confidence are ignored; lower means more detections.
     static let minDetectionConfidence: Float = 0.25
 
@@ -47,10 +51,33 @@ enum Config {
 
     /// No processed frame for this long means Unknown (stale).
     static let staleFrameTimeoutSeconds = 0.3
-    /// Clear only after rules 1 to 5 have been quiet this long.
+    /// Clear only after rules 1 to 8 have been quiet this long.
     static let clearHoldSeconds = 1.5
     /// Stationary vehicles covering more than this fraction of the tile block the view.
     static let blockedFraction = 0.3
+    /// With no moving vehicle seen for this long, an empty picture no longer reads "no cars" but "no road seen".
+    static let roadEvidenceSeconds = 300.0
+    /// While tilted, a car seen this recently is still reported ("car", no time).
+    static let tiltCarMemorySeconds = 1.0
+
+    /// Faces covering this fraction of the front camera's picture mean the screen faces the user.
+    static let faceMinAreaFraction = 0.05
+    /// A car sliding sideways at least this many box widths per second without growing crosses the view: misaimed.
+    static let misaimSidewaysBoxWidthsPerSecond = 1.0
+    /// Seconds of a track's boxes needed before it can count as crossing.
+    static let misaimMinSeconds = 0.5
+    /// A crossing car changes height by at most this fraction over that time; an approaching one grows.
+    static let misaimMaxGrowthFraction = 0.2
+    /// Crossing cars are at least this tall (fraction of the picture), so a far cross street doesn't count.
+    static let misaimMinHeightFraction = 0.05
+    /// And at most this tall, so a car passing right at the curb doesn't count.
+    static let misaimMaxHeightFraction = 0.3
+    /// After crossing traffic is seen, the side reads misaimed this long.
+    static let misaimMemorySeconds = 10.0
+    /// The compass may drift this far from the locked street heading before the side reads misaimed.
+    static let headingToleranceDegrees = 25.0
+    /// The camera axis's horizontal part below this (pointing steeply up or down) gives no heading.
+    static let headingMinHorizontalFraction = 0.5
 
     /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
@@ -68,6 +95,8 @@ enum Config {
     static let maxUtteranceSeconds = 4.0
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
+    /// While a side reads "no cars", a soft tick after this much quiet says the app is still watching.
+    static let heartbeatSeconds = 10.0
 
     /// Screen only: a car whose time to arrival is this or less turns red; Decide and speech don't use it.
     static let dangerHighlightSeconds = 8.0
@@ -90,4 +119,10 @@ enum Config {
     static let maxMeanLuma = 0.95
     /// Laplacian variance (0...255 luma) below this means the lens is covered. Calibrate on Footage.
     static let minLaplacianVariance = 10.0
+    /// The center tile is checked in this many cells per side, so a finger over part of the lens shows.
+    static let qualityGridCells = 4
+    /// A flat tile cell darker than this fraction of the frame's mean luma is covered (sky is flat but bright).
+    static let coveredCellRelativeLuma = 0.5
+    /// This many covered tile cells mean something is over part of the lens. Calibrate on Footage.
+    static let coveredMinCells = 2
 }

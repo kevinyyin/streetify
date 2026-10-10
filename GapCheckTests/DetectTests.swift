@@ -25,6 +25,25 @@ final class DetectTests: XCTestCase {
         XCTAssertEqual(q.meanLuma, 0.5, accuracy: 0.05)
     }
 
+    /// A finger over the left of the lens: the frame as a whole still looks fine, but the tile cells show it.
+    func testHalfCoveredFrameIsPartlyCovered() {
+        var rng = SplitMix64(state: 2)
+        let q = imageQuality(makeLumaBuffer(width: 1920, height: 1080) { x, _ in x < 960 ? 0 : UInt8.random(in: 0...255, using: &rng) })
+        XCTAssertGreaterThan(q.meanLuma, Config.minMeanLuma)
+        XCTAssertGreaterThan(q.laplacianVariance, Config.minLaplacianVariance)
+        XCTAssertEqual(q.tileCells.count, Config.qualityGridCells * Config.qualityGridCells)
+        XCTAssertTrue(isPartlyCovered(q))
+        XCTAssertEqual(qualityProblem(q), .covered)
+    }
+
+    /// Bright flat sky over the top of the tile is not a covered lens.
+    func testFlatSkyIsNotCovered() {
+        var rng = SplitMix64(state: 3)
+        let q = imageQuality(makeLumaBuffer(width: 1920, height: 1080) { _, y in y < 540 ? 230 : UInt8.random(in: 0...255, using: &rng) })
+        XCTAssertFalse(isPartlyCovered(q))
+        XCTAssertNil(qualityProblem(q))
+    }
+
     func testTileRectIsCentered640Square() {
         let t = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
         XCTAssertEqual(t.minX, (1 - 640.0 / 1080) / 2, accuracy: 1e-9)
