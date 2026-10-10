@@ -60,7 +60,9 @@ struct SpeechQueue {
         if let side = u.side, let state = current[side] {
             guard state != .unknown(.notLevel) else { return nil } // not level is the tone's job
             u = utterance(side, state)
-            guard lastSaid[side] != u.text else { return nil }
+            // A sentence that changed while waiting is dropped if it became what that side last said. One sent as it
+            // is (like the state after leveling out, which is always announced) is said even if it repeats.
+            guard u.text == queued.text || lastSaid[side] != u.text else { return nil }
         }
         if let side = u.side { lastSaid[side] = u.text } else { lastSaid = [:] }
         speaking = (u, now)

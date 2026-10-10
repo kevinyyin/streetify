@@ -250,17 +250,17 @@ final class SpeechQueueTests: XCTestCase {
     func testSameSideNewsWaits() {
         var q = SpeechQueue()
         let car9 = utterance(.right, .approaching(.seconds(9)))
-        let car5 = utterance(.right, .approaching(.seconds(5)))
+        let car8 = utterance(.right, .approaching(.seconds(8))) // not close: a close warning would cut in
         XCTAssertEqual(q.add([car9], atSeconds: 0), car9)
-        XCTAssertNil(q.add([car5], atSeconds: 0.5))
-        XCTAssertEqual(q.finished(text: car9.text, atSeconds: 1.5), car5)
+        XCTAssertNil(q.add([car8], atSeconds: 0.5))
+        XCTAssertEqual(q.finished(text: car9.text, atSeconds: 1.5), car8)
     }
 
     /// A sentence that waited is said as its side is now: cars that already passed are dropped.
     func testWaitingCarIsRefreshedWhenItsTurnComes() {
         var q = SpeechQueue()
         _ = q.add([carRight], atSeconds: 0)
-        XCTAssertNil(q.add([utterance(.right, .approaching(.seconds(3)))], atSeconds: 0.5))
+        XCTAssertNil(q.add([utterance(.right, .approaching(.seconds(8)))], atSeconds: 0.5)) // not close, so it waits
         let next = q.finished(text: carRight.text, atSeconds: 1.5, current: [.right: .clear])
         XCTAssertEqual(next?.text, "Right: no cars")
     }
@@ -271,6 +271,24 @@ final class SpeechQueueTests: XCTestCase {
         _ = q.add([carRight], atSeconds: 0, current: [.right: .approaching(.seconds(6))])
         XCTAssertNil(q.add([utterance(.right, .clear)], atSeconds: 0.5))
         XCTAssertNil(q.finished(text: carRight.text, atSeconds: 1.5, current: [.right: .approaching(.seconds(6))]))
+    }
+
+    /// The state after leveling out is always said, even when it matches what was said before the tilt.
+    func testSameSentenceAfterLevelingIsSaidAgain() {
+        var q = SpeechQueue()
+        let noCars = utterance(.left, .clear)
+        XCTAssertEqual(q.add([noCars], atSeconds: 0, current: [.left: .clear]), noCars)
+        XCTAssertNil(q.finished(text: noCars.text, atSeconds: 1, current: [.left: .clear]))
+        XCTAssertEqual(q.add([noCars], atSeconds: 5, current: [.left: .clear]), noCars) // announce() sends it again
+    }
+
+    /// A close warning cuts in, even on the side being spoken: it can't wait behind older news about that car.
+    func testCloseWarningCutsInOnTheSameSide() {
+        var q = SpeechQueue()
+        let car12 = utterance(.right, .approaching(.seconds(12)))
+        let car4 = utterance(.right, .approaching(.seconds(4)))
+        XCTAssertEqual(q.add([car12], atSeconds: 0), car12)
+        XCTAssertEqual(q.add([car4], atSeconds: 0.5), car4)
     }
 
     /// A late "finished" for a sentence that was cut off must not end the one now playing.
