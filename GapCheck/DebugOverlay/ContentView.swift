@@ -88,7 +88,7 @@ struct ContentView: View {
     /// Red = car, amber = problem, green = no cars (owner's choice, 2026-10-09; the words still never say "go").
     private func statusBar(_ side: Side, _ state: DirectionState) -> some View {
         let (fill, text): (Color, Color) = switch priority(of: state) {
-        case .car: (.red, .white)
+        case .car, .closeCar: (.red, .white)
         case .problem: (.orange, .black)
         case .noCars: (.green, .black)
         }

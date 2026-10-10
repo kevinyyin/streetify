@@ -4,9 +4,11 @@ enum HapticKind: Equatable {
     case approaching, clear, unknown, ready
 }
 
-/// Which news may cut in on which: a car beats a problem beats "no cars".
+/// Which news may cut in on which: a close car beats a car beats a problem beats "no cars".
 enum SpeechPriority: Int, Comparable {
     case noCars, problem, car
+    /// At or under `Config.closeWarningSeconds`: cuts in even on the side being spoken.
+    case closeCar
     static func < (a: SpeechPriority, b: SpeechPriority) -> Bool { a.rawValue < b.rawValue }
 }
 
@@ -20,6 +22,7 @@ struct Utterance: Equatable {
 /// How urgent a state is; also picks the banner color on screen (red, amber, gray).
 func priority(of state: DirectionState) -> SpeechPriority {
     switch state {
+    case .approaching(.seconds(let s)) where Double(s) <= Config.closeWarningSeconds: return .closeCar
     case .approaching: return .car
     case .unknown: return .problem
     case .clear: return .noCars
@@ -89,7 +92,7 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
         : states.contains(where: { if case .unknown = $0 { $0 != .unknown(.notLevel) } else { false } }) ? .unknown
         : .clear
-    let ordered = [SpeechPriority.car, .problem, .noCars].flatMap { p in unique.filter { $0.priority == p } }
+    let ordered = [SpeechPriority.closeCar, .car, .problem, .noCars].flatMap { p in unique.filter { $0.priority == p } }
     return FeedbackEvent(haptic: haptic, utterances: ordered)
 }
 
