@@ -9,8 +9,9 @@ struct SegmentMask {
     let image: CGImage
 }
 
-/// YOLO11n-seg on its own queue, for the screen. A frame that arrives while it is busy is skipped, so it never
-/// slows the pipeline that makes the warnings.
+/// YOLO11n-seg on its own queue, for the screen. A frame that arrives while it is busy is skipped, so it never queues
+/// up behind the warnings; it still shares the Neural Engine with them, so AppModel runs it only when someone can see
+/// the screen.
 final class Segmenter {
     var onMasks: (([SegmentMask]) -> Void)?
 

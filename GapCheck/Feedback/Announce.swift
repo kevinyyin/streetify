@@ -2,6 +2,8 @@ import Foundation
 
 enum HapticKind: Equatable {
     case approaching, clear, unknown, ready
+    /// "Still watching": a soft tick during long quiet while a side reads "no cars".
+    case heartbeat
 }
 
 /// Which news may cut in on which: a car beats a problem beats "no cars".
@@ -45,9 +47,9 @@ private enum Spoken: Equatable {
     init(_ state: DirectionState) {
         switch state {
         case .clear: self = .clear
-        case .approaching(.far): self = .far
-        case .approaching(.unmeasured): self = .unmeasured
-        case .approaching(.seconds(let s)): self = Double(s) <= Config.closeWarningSeconds ? .close : .timed
+        case .approaching(.far, _): self = .far
+        case .approaching(.unmeasured, _): self = .unmeasured
+        case .approaching(.seconds(let s), _): self = Double(s) <= Config.closeWarningSeconds ? .close : .timed
         case .unknown(let reason): self = .unknown(reason)
         }
     }
@@ -60,8 +62,8 @@ private func isChange(from previous: DirectionState?, to current: DirectionState
     guard from != to else { return false }
     if from == .timed && to == .far { return false }
     // ponytail: "big jump = new car" heuristic; carry track ids in the state if two cars close together blur.
-    if from == .close, to == .timed, case .approaching(.seconds(let was))? = previous,
-       case .approaching(.seconds(let now)) = current, Double(now - was) <= Config.newCarJumpSeconds { return false }
+    if from == .close, to == .timed, case .approaching(.seconds(let was), _)? = previous,
+       case .approaching(.seconds(let now), _) = current, Double(now - was) <= Config.newCarJumpSeconds { return false }
     return true
 }
 
@@ -80,13 +82,16 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
         guard let now = current[side], now != .unknown(.notLevel), isChange(from: previous[side], to: now) else { return nil }
         return utterance(side, now)
     }
-    guard !changed.isEmpty else { return nil }
+    // Phone-wide news ("Phone too hot") is the same sentence for both sides: say it once.
+    var seen = Set<String>()
+    let unique = changed.filter { seen.insert($0.text).inserted }
+    guard !unique.isEmpty else { return nil }
     let states = current.values
     // The "no cars" hum only when no side has a car or a problem.
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
         : states.contains(where: { if case .unknown = $0 { $0 != .unknown(.notLevel) } else { false } }) ? .unknown
         : .clear
-    let ordered = [SpeechPriority.car, .problem, .noCars].flatMap { p in changed.filter { $0.priority == p } }
+    let ordered = [SpeechPriority.car, .problem, .noCars].flatMap { p in unique.filter { $0.priority == p } }
     return FeedbackEvent(haptic: haptic, utterances: ordered)
 }
 
@@ -101,9 +106,20 @@ struct ToneSettings: Equatable {
     let frequencyHz: Double
 }
 
-/// The tone means only "the phone isn't level": on while tilted, pitch rising toward level; silent when level.
-func toneSettings(isLevel: Bool, tiltErrorDegrees: Double) -> ToneSettings {
-    guard !isLevel else { return ToneSettings(isOn: false, frequencyHz: 0) }
-    let closeness = 1 - min(tiltErrorDegrees, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
+/// The tone means only "the phone isn't pointed right": on while tilted, or while the compass says it turned off the
+/// street (`headingErrorDegrees`, passed only then), pitch rising toward aimed; silent when aimed. Silent while a car is
+/// coming, so the car's sentence is heard.
+func toneSettings(isLevel: Bool, tiltErrorDegrees: Double, headingErrorDegrees: Double? = nil,
+                  isCarComing: Bool = false) -> ToneSettings {
+    var errors: [Double] = isLevel ? [] : [tiltErrorDegrees]
+    if let headingErrorDegrees { errors.append(headingErrorDegrees) }
+    guard !isCarComing, let error = errors.max() else { return ToneSettings(isOn: false, frequencyHz: 0) }
+    let closeness = 1 - min(error, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
     return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness)
+}
+
+/// While a side reads "no cars", a soft tick every `Config.heartbeatSeconds` of quiet says the app is still watching,
+/// so silence never stands in for "no cars".
+func isHeartbeatDue(_ states: [Side: DirectionState], lastOutputSeconds: Double, nowSeconds: Double) -> Bool {
+    states.values.contains(.clear) && nowSeconds - lastOutputSeconds >= Config.heartbeatSeconds
 }

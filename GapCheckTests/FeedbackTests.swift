@@ -22,6 +22,37 @@ final class FeedbackTests: XCTestCase {
         XCTAssertEqual(Strings.sentence(.left, .unknown(.tooBright)), "Left: too bright")
         XCTAssertEqual(Strings.sentence(.right, .unknown(.covered)), "Right: camera covered")
         XCTAssertEqual(Strings.sentence(.left, .unknown(.viewBlocked)), "Left: blocked")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.noPermission)), "Camera access is off. Turn it on in Settings")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.unsupported)), "This iPhone can't use both cameras")
+        XCTAssertEqual(Strings.sentence(.right, .unknown(.interrupted)), "Right: camera in use")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.overheated)), "Phone too hot")
+        XCTAssertEqual(Strings.sentence(.right, .unknown(.noRoadSeen)), "Right: no road seen")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.facingUser)), "Turn the screen away from you")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.misaimed)), "Turn the phone back toward the road")
+    }
+
+    /// Speech names what is coming, and an arrival under a second is "close", never "0 seconds".
+    func testMoverAndCloseCopy() {
+        XCTAssertEqual(Strings.sentence(.right, .approaching(.seconds(6), .bike)), "Right: bike, 6 seconds")
+        XCTAssertEqual(Strings.sentence(.left, .approaching(.unmeasured, .person)), "Left: person")
+        XCTAssertEqual(Strings.sentence(.left, .approaching(.seconds(0))), "Left: car, close")
+        XCTAssertEqual(Strings.label(.approaching(.far, .bike)), "Bike · far")
+        XCTAssertEqual(Strings.label(.approaching(.seconds(0))), "Car · close")
+    }
+
+    /// Phone-wide news is the same sentence for both sides: it is said once.
+    func testSameSentenceForBothSidesIsSaidOnce() {
+        let e = announce(previous: stale, current: [.left: .unknown(.overheated), .right: .unknown(.overheated)])
+        XCTAssertEqual(e?.text, "Phone too hot")
+        XCTAssertEqual(e?.haptic, .unknown)
+    }
+
+    /// While a side reads "no cars", a soft tick after long quiet says the app is still watching.
+    func testHeartbeatOnlyDuringLongQuietWithNoCars() {
+        let quiet = Config.heartbeatSeconds
+        XCTAssertTrue(isHeartbeatDue([.left: .clear, .right: .unknown(.viewBlocked)], lastOutputSeconds: 0, nowSeconds: quiet))
+        XCTAssertFalse(isHeartbeatDue([.left: .clear, .right: .clear], lastOutputSeconds: 0, nowSeconds: quiet - 0.1))
+        XCTAssertFalse(isHeartbeatDue(stale, lastOutputSeconds: 0, nowSeconds: quiet * 10))
     }
 
     /// The big words on each side's banner. Like speech, nothing reads as "go".
@@ -165,6 +196,52 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue(far.isOn)
         XCTAssertGreaterThan(near.frequencyHz, far.frequencyHz)
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
+    }
+
+    /// The tone also guides the phone back to the street heading, and goes quiet while a car is coming.
+    func testToneGuidesHeadingAndYieldsToCars() {
+        let off = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 40)
+        let near = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 26)
+        XCTAssertTrue(off.isOn)
+        XCTAssertGreaterThan(near.frequencyHz, off.frequencyHz)
+        XCTAssertFalse(toneSettings(isLevel: false, tiltErrorDegrees: 30, isCarComing: true).isOn)
+    }
+
+    func testPreviewOffForVoiceOverUnlessAsked() {
+        XCTAssertTrue(showsPreview(voiceOverRunning: false, arguments: ["GapCheck"]))
+        XCTAssertFalse(showsPreview(voiceOverRunning: true, arguments: ["GapCheck"]))
+        XCTAssertTrue(showsPreview(voiceOverRunning: true, arguments: ["GapCheck", "-showOverlay"]))
+    }
+
+    /// A portrait frame is shown as its centered full-width square; boxes are drawn through the same crop.
+    func testPreviewCrop() {
+        let crop = previewCrop(orientedWidth: 1080, orientedHeight: 1920)
+        XCTAssertEqual(crop.width, 1)
+        XCTAssertEqual(crop.height, 1080.0 / 1920, accuracy: 1e-9)
+        XCTAssertEqual(crop.midY, 0.5, accuracy: 1e-9)
+        XCTAssertEqual(previewCrop(orientedWidth: 1920, orientedHeight: 1080), CGRect(x: 0, y: 0, width: 1, height: 1))
+    }
+}
+
+/// Invariant 1: nothing the app says or shows reads as permission to cross.
+final class BannedWordsTests: XCTestCase {
+    func testNoSentenceOrLabelSaysGo() throws {
+        let reasons: [UnknownReason] = [.stale, .notLevel, .tooDark, .tooBright, .covered, .viewBlocked, .noPermission,
+                                        .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser, .misaimed]
+        let arrivals: [Arrival] = [.seconds(0), .seconds(1), .seconds(7), .far, .unmeasured]
+        let movers: [Mover] = [.car, .bike, .person]
+        var states: [DirectionState] = [.clear]
+        states += reasons.map { DirectionState.unknown($0) }
+        for a in arrivals { states += movers.map { DirectionState.approaching(a, $0) } }
+        var texts = [Strings.paused, Strings.holdInstructions]
+        for state in states {
+            texts += [Strings.sentence(.left, state), Strings.sentence(.right, state), Strings.label(state)]
+        }
+        texts.append(Strings.status([.left: .clear, .right: .clear]))
+        let banned = try NSRegularExpression(pattern: #"\b(safe|go|cross now|clear to cross|all clear)\b"#, options: .caseInsensitive)
+        for text in texts {
+            XCTAssertNil(banned.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)), text)
+        }
     }
 }
 

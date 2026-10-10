@@ -8,12 +8,19 @@ func staleSides(lastUpdateSeconds: [Side: Double], nowSeconds: Double) -> [Side]
     }
 }
 
+/// What a silent side reads: the camera fault when one is known, else stale.
+func silentSideState(fault: UnknownReason?) -> DirectionState {
+    .unknown(fault ?? .stale)
+}
+
 struct PipelineUpdate {
     let side: Side
     let frame: Frame?
     let detections: [Detection]
     let tracks: [Track]
     let state: DirectionState
+    /// Compass error from the locked street heading, for the tone.
+    var headingErrorDegrees: Double? = nil
 }
 
 /// Source → Detect → Track → Decide for one camera on its own serial queue. Shares no state with the other pipeline.
@@ -40,15 +47,21 @@ final class Pipeline {
     func start() { source.start() }
     func stop() { source.stop() }
 
+    /// The live watchdog found this side silent; the next Clear waits the full hold. Call from any queue.
+    func noteStale() { queue.async { self.decider.noteExternalStale() } }
+
     private func process(_ frame: Frame) {
         // A frame whose detection throws never reaches Decide, so the watchdog or the next gap reports stale.
         guard let found = try? detector.detect(frame) else { return }
-        let detections = found.filter { Config.vehicleLabels.contains($0.label) }
-        let tracks = tracker.update(detections, atSeconds: frame.timestampSeconds, orientation: frame.orientation)
+        // Vehicles and people are tracked; people only count as coming once measured (see Decider).
+        let movers = found.filter { labelMover($0.label) != nil }
+        let tracks = tracker.update(movers, atSeconds: frame.timestampSeconds, orientation: frame.orientation)
         let observation = FrameObservation(timestampSeconds: frame.timestampSeconds, isLevel: frame.isLevel,
                                            quality: imageQuality(frame.pixelBuffer), tile: frameTileRect(frame),
-                                           blockerBoxes: found.filter { Config.blockerLabels.contains($0.label) }.map(\.box))
+                                           headingDegrees: frame.headingDegrees,
+                                           faceBoxes: found.filter { $0.label == Config.faceLabel }.map(\.box))
         let state = decider.update(observation, tracks: tracks)
-        onUpdate?(PipelineUpdate(side: side, frame: frame, detections: detections, tracks: tracks, state: state))
+        onUpdate?(PipelineUpdate(side: side, frame: frame, detections: movers, tracks: tracks, state: state,
+                                 headingErrorDegrees: decider.headingErrorDegrees))
     }
 }

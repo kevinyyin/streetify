@@ -14,14 +14,17 @@ struct ContentView: View {
                 levelLine
                 section(.left)
                 section(.right)
+                if model.isPreviewOn { legend }
             }
             .contentShape(Rectangle())
             .onTapGesture { model.speakStatus() }
+            .onLongPressGesture { model.speakHoldInstructions() }
             // For VoiceOver the whole display is one item: the status sentence.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Strings.status(model.panes.mapValues(\.state)))
             .accessibilityHint("Double-tap to hear it again")
             .accessibilityAction { model.speakStatus() }
+            .accessibilityAction(named: "How to hold the phone") { model.speakHoldInstructions() }
 
             if showsReplayControls(arguments: ProcessInfo.processInfo.arguments) {
                 HStack {
@@ -43,15 +46,26 @@ struct ContentView: View {
     }
 
     private var levelLine: some View {
-        Group {
+        HStack(spacing: 16) {
             if model.isLevel {
                 Label("Level", systemImage: "checkmark.circle").foregroundStyle(.gray)
             } else {
                 Text("Tilted \(Int(model.tiltErrorDegrees.rounded()))°").foregroundStyle(.orange)
             }
+            if model.isMuted {
+                Label("Volume off", systemImage: "speaker.slash").foregroundStyle(.orange)
+            }
         }
         .font(.subheadline)
         .frame(maxWidth: .infinity)
+    }
+
+    /// What the outline colors mean, for sighted judges.
+    private var legend: some View {
+        Text("Outlines: red close, yellow coming, white leaving")
+            .font(.footnote)
+            .foregroundStyle(.gray)
+            .frame(maxWidth: .infinity)
     }
 
     /// One direction: its status bar on top, its camera below. Left is the top section, right the bottom.
@@ -64,9 +78,16 @@ struct ContentView: View {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .scaledToFit()
-                        .overlay { Canvas { ctx, size in drawTracks(p.tracks, masks: p.masks, redIds: p.redTrackIds, atSeconds: p.timestampSeconds, in: ctx, size: size) } }
+                        .overlay {
+                            Canvas { ctx, size in
+                                drawTracks(p.tracks, masks: p.masks, redIds: p.redTrackIds, atSeconds: p.timestampSeconds,
+                                           crop: p.imageCrop, in: ctx, size: size)
+                            }
+                        }
+                        .clipped()
                 } else {
-                    Text(showsReplayControls(arguments: ProcessInfo.processInfo.arguments)
+                    Text(!model.isPreviewOn ? "Preview off while VoiceOver is on"
+                         : showsReplayControls(arguments: ProcessInfo.processInfo.arguments)
                          ? "No feed. Tap Replay \(side == .left ? "left" : "right")… to load a clip." : "No feed")
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 12)
@@ -79,12 +100,12 @@ struct ContentView: View {
         }
     }
 
-    /// Red = car, amber = problem, green = no cars (owner's choice, 2026-10-09; the words still never say "go").
+    /// Red = car, amber = problem, gray = no cars. Not green: green reads as "go" (changed 2026-10-09).
     private func statusBar(_ side: Side, _ state: DirectionState) -> some View {
         let (fill, text): (Color, Color) = switch priority(of: state) {
         case .car: (.red, .white)
         case .problem: (.orange, .black)
-        case .noCars: (.green, .black)
+        case .noCars: (Color(white: 0.3), .white)
         }
         return Text("\(side == .left ? "Left" : "Right") · \(Strings.label(state))")
             .font(.title3.weight(.semibold))
@@ -106,13 +127,15 @@ struct ContentView: View {
         .accessibilityLabel("Replay \(name) clip")
     }
 
-    /// Each car's outline tinted red (close, or in a close line of cars), yellow (facing us) or green (driving away), with its id
+    /// Each car's outline tinted red (close, or in a close line of cars), yellow (facing us) or white (driving away), with its id
     /// and time to arrival ("new" while too new to measure, "-" when not closing). A car with no outline yet gets a box.
-    /// Outlines matched to no car (people, cars not tracked yet) are drawn faint gray.
-    private func drawTracks(_ tracks: [Track], masks: [SegmentMask], redIds: Set<Int>, atSeconds t: Double, in ctx: GraphicsContext, size: CGSize) {
-        // Vision boxes have their origin bottom-left.
+    /// Outlines matched to no track (cars not tracked yet) are drawn faint gray.
+    private func drawTracks(_ tracks: [Track], masks: [SegmentMask], redIds: Set<Int>, atSeconds t: Double, crop: CGRect,
+                            in ctx: GraphicsContext, size: CGSize) {
+        // Vision boxes are normalized to the whole frame, origin bottom-left; the image shows only `crop` of it.
         func rect(_ box: CGRect) -> CGRect {
-            CGRect(x: box.minX * size.width, y: (1 - box.maxY) * size.height, width: box.width * size.width, height: box.height * size.height)
+            CGRect(x: (box.minX - crop.minX) / crop.width * size.width, y: (crop.maxY - box.maxY) / crop.height * size.height,
+                   width: box.width / crop.width * size.width, height: box.height / crop.height * size.height)
         }
         func fill(_ mask: SegmentMask, _ color: Color, opacity: Double) {
             var layer = ctx
@@ -144,4 +167,18 @@ struct ContentView: View {
 /// `-showReplay` (the Xcode scheme passes it), never from the home screen.
 func showsReplayControls(arguments: [String]) -> Bool {
     arguments.contains("-showReplay")
+}
+
+/// The camera preview and outlines cost processing the warnings could use; with VoiceOver on nobody sees them, so
+/// they are off unless launched with `-showOverlay` (for a sighted judge beside a VoiceOver user).
+func showsPreview(voiceOverRunning: Bool, arguments: [String]) -> Bool {
+    !voiceOverRunning || arguments.contains("-showOverlay")
+}
+
+/// The part of a camera frame the screen shows, Vision-normalized: a tall (portrait) frame is cut to the centered
+/// square across its full width, where the road is, dropping sky and pavement; a wide frame is shown whole.
+func previewCrop(orientedWidth w: Double, orientedHeight h: Double) -> CGRect {
+    guard h > w, h > 0 else { return CGRect(x: 0, y: 0, width: 1, height: 1) }
+    let height = w / h
+    return CGRect(x: 0, y: (1 - height) / 2, width: 1, height: height)
 }

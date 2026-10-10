@@ -8,6 +8,8 @@ struct Frame {
     let orientation: CGImagePropertyOrientation
     let isLevel: Bool
     let tiltErrorDegrees: Double
+    /// Compass heading of the camera axis; nil without a calibrated compass, and in replay.
+    var headingDegrees: Double? = nil
 }
 
 protocol FrameSource: AnyObject {

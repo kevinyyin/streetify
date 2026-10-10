@@ -4,15 +4,24 @@ enum Strings {
         let name = side == .left ? "Left" : "Right" // side first, so the direction is heard before the news
         switch state {
         case .clear: return "\(name): no cars"
-        case .approaching(.seconds(let seconds)): return "\(name): car, \(seconds) \(seconds == 1 ? "second" : "seconds")"
-        case .approaching(.far): return "\(name): car, far"
-        case .approaching(.unmeasured): return "\(name): car"
+        case .approaching(.seconds(let seconds), let mover):
+            return seconds < 1 ? "\(name): \(word(mover)), close"
+                : "\(name): \(word(mover)), \(seconds) \(seconds == 1 ? "second" : "seconds")"
+        case .approaching(.far, let mover): return "\(name): \(word(mover)), far"
+        case .approaching(.unmeasured, let mover): return "\(name): \(word(mover))"
         case .unknown(.stale): return "\(name): camera stopped"
         case .unknown(.notLevel): return "Hold the phone level"
         case .unknown(.tooDark): return "\(name): too dark"
         case .unknown(.tooBright): return "\(name): too bright"
         case .unknown(.covered): return "\(name): camera covered"
         case .unknown(.viewBlocked): return "\(name): blocked"
+        case .unknown(.noPermission): return "Camera access is off. Turn it on in Settings"
+        case .unknown(.unsupported): return "This iPhone can't use both cameras"
+        case .unknown(.interrupted): return "\(name): camera in use"
+        case .unknown(.overheated): return "Phone too hot"
+        case .unknown(.noRoadSeen): return "\(name): no road seen"
+        case .unknown(.facingUser): return "Turn the screen away from you"
+        case .unknown(.misaimed): return "Turn the phone back toward the road"
         }
     }
 
@@ -20,15 +29,23 @@ enum Strings {
     static func label(_ state: DirectionState) -> String {
         switch state {
         case .clear: return "No cars"
-        case .approaching(.seconds(let seconds)): return "Car · \(seconds) s"
-        case .approaching(.far): return "Car · far"
-        case .approaching(.unmeasured): return "Car"
+        case .approaching(.seconds(let seconds), let mover):
+            return seconds < 1 ? "\(title(mover)) · close" : "\(title(mover)) · \(seconds) s"
+        case .approaching(.far, let mover): return "\(title(mover)) · far"
+        case .approaching(.unmeasured, let mover): return title(mover)
         case .unknown(.stale): return "Camera stopped"
         case .unknown(.notLevel): return "Hold level"
         case .unknown(.tooDark): return "Too dark"
         case .unknown(.tooBright): return "Too bright"
         case .unknown(.covered): return "Camera covered"
         case .unknown(.viewBlocked): return "Blocked"
+        case .unknown(.noPermission): return "Camera off in Settings"
+        case .unknown(.unsupported): return "Not supported"
+        case .unknown(.interrupted): return "Camera in use"
+        case .unknown(.overheated): return "Too hot"
+        case .unknown(.noRoadSeen): return "No road seen"
+        case .unknown(.facingUser): return "Screen faces you"
+        case .unknown(.misaimed): return "Turn to road"
         }
     }
 
@@ -39,5 +56,24 @@ enum Strings {
             if let s = states[side].map({ sentence(side, $0) }), !sentences.contains(s) { sentences.append(s) }
         }
         return sentences.joined(separator: ". ")
+    }
+
+    /// Said when the app leaves the foreground and stops watching.
+    static let paused = "Streetify paused"
+    /// Said on first launch, and on a long press.
+    static let holdInstructions = "Hold the phone upright, edge toward the street, screen facing left"
+
+    /// What is coming, as spoken.
+    static func word(_ mover: Mover) -> String {
+        switch mover {
+        case .car: return "car"
+        case .bike: return "bike"
+        case .person: return "person"
+        }
+    }
+
+    private static func title(_ mover: Mover) -> String {
+        let w = word(mover)
+        return w.prefix(1).uppercased() + w.dropFirst()
     }
 }

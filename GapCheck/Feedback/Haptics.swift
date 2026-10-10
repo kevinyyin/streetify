@@ -1,6 +1,6 @@
 import CoreHaptics
 
-/// The four distinct patterns. Silent on hardware without haptics.
+/// The five distinct patterns. Silent on hardware without haptics.
 final class Haptics {
     private let engine: CHHapticEngine?
 
@@ -34,6 +34,8 @@ final class Haptics {
             ], relativeTime: 0, duration: 0.4)]
         case .ready: // one crisp tap
             return [tap(at: 0, intensity: 0.8, sharpness: 0.9)]
+        case .heartbeat: // one faint, dull tap
+            return [tap(at: 0, intensity: 0.35, sharpness: 0.2)]
         }
     }
 }
