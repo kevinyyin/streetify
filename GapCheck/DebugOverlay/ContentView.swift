@@ -17,11 +17,13 @@ struct ContentView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { model.speakStatus() }
+            .onLongPressGesture { model.speakHoldInstructions() }
             // For VoiceOver the whole display is one item: the status sentence.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Strings.status(model.panes.mapValues(\.state)))
             .accessibilityHint("Double-tap to hear it again")
             .accessibilityAction { model.speakStatus() }
+            .accessibilityAction(named: "How to hold the phone") { model.speakHoldInstructions() }
 
             if showsReplayControls(arguments: ProcessInfo.processInfo.arguments) {
                 HStack {
@@ -43,11 +45,14 @@ struct ContentView: View {
     }
 
     private var levelLine: some View {
-        Group {
+        HStack(spacing: 16) {
             if model.isLevel {
                 Label("Level", systemImage: "checkmark.circle").foregroundStyle(.gray)
             } else {
                 Text("Tilted \(Int(model.tiltErrorDegrees.rounded()))°").foregroundStyle(.orange)
+            }
+            if model.isMuted {
+                Label("Volume off", systemImage: "speaker.slash").foregroundStyle(.orange)
             }
         }
         .font(.subheadline)
@@ -66,7 +71,8 @@ struct ContentView: View {
                         .scaledToFit()
                         .overlay { Canvas { ctx, size in drawTracks(p.tracks, masks: p.masks, redIds: p.redTrackIds, atSeconds: p.timestampSeconds, in: ctx, size: size) } }
                 } else {
-                    Text(showsReplayControls(arguments: ProcessInfo.processInfo.arguments)
+                    Text(!model.isPreviewOn ? "Preview off while VoiceOver is on"
+                         : showsReplayControls(arguments: ProcessInfo.processInfo.arguments)
                          ? "No feed. Tap Replay \(side == .left ? "left" : "right")… to load a clip." : "No feed")
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 12)
@@ -144,4 +150,10 @@ struct ContentView: View {
 /// `-showReplay` (the Xcode scheme passes it), never from the home screen.
 func showsReplayControls(arguments: [String]) -> Bool {
     arguments.contains("-showReplay")
+}
+
+/// The camera preview costs processing the warnings could use; with VoiceOver on nobody sees it, so it is off
+/// unless launched with `-showOverlay` (for a sighted judge beside a VoiceOver user).
+func showsPreview(voiceOverRunning: Bool, arguments: [String]) -> Bool {
+    !voiceOverRunning || arguments.contains("-showOverlay")
 }

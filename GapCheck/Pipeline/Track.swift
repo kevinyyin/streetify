@@ -1,7 +1,7 @@
 import CoreGraphics
 import ImageIO
 
-/// Which way a car is going, for the screen only.
+/// Which way a car is going along the camera axis, over `Config.directionWindowSeconds`.
 enum Travel { case toward, away, unclear }
 
 /// When a track's car arrives. A nil time means it isn't getting closer.
@@ -18,11 +18,11 @@ struct Track {
     let firstSeenSeconds: Double
     var lastSeenSeconds: Double
     var heights: [(t: Double, h: Double)]
-    /// Boxes over `Config.directionWindowSeconds`, for the screen's colors only. Decide never reads them.
+    /// Boxes over `Config.directionWindowSeconds`, for `travel`: the screen's colors and Decide's road evidence.
     var directionBoxes: [(t: Double, box: CGRect)] = []
 
     /// Which way the car is going over the longer direction window: surely (even at the confidence bound) and at least
-    /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Display only.
+    /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Decide takes either as proof of a road.
     var travel: Travel {
         let s = directionBoxes.map { (t: $0.t, h: Double($0.box.height)) }
         let n = Double(s.count)

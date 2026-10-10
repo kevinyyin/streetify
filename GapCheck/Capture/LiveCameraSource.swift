@@ -7,7 +7,9 @@ enum CaptureError: Error { case noCamera, noMultiCamFormat, cannotAdd }
 final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSampleBufferDelegate {
     var onFrame: ((Frame) -> Void)?
 
-    private let position: AVCaptureDevice.Position
+    let position: AVCaptureDevice.Position
+    /// For AppModel to watch its system pressure (heat).
+    let device: AVCaptureDevice
     private let motion: CMMotionManager
     private let level: LevelGate
     private let queue: DispatchQueue
@@ -15,15 +17,16 @@ final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSam
     private var lastSeconds = -Double.infinity
 
     init(session: AVCaptureMultiCamSession, position: AVCaptureDevice.Position, motion: CMMotionManager, level: LevelGate) throws {
+        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
+            throw CaptureError.noCamera
+        }
+        self.device = device
         self.position = position
         self.motion = motion
         self.level = level
         queue = DispatchQueue(label: position == .front ? "camera.front" : "camera.back")
         super.init()
 
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
-            throw CaptureError.noCamera
-        }
         guard let format = device.formats.first(where: {
             let d = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
             return $0.isMultiCamSupported && d.width == Config.captureWidthPixels && d.height == Config.captureHeightPixels

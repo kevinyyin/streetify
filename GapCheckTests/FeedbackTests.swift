@@ -22,6 +22,30 @@ final class FeedbackTests: XCTestCase {
         XCTAssertEqual(Strings.sentence(.left, .unknown(.tooBright)), "Left: too bright")
         XCTAssertEqual(Strings.sentence(.right, .unknown(.covered)), "Right: camera covered")
         XCTAssertEqual(Strings.sentence(.left, .unknown(.viewBlocked)), "Left: blocked")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.noPermission)), "Camera access is off. Turn it on in Settings")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.unsupported)), "This iPhone can't use both cameras")
+        XCTAssertEqual(Strings.sentence(.right, .unknown(.interrupted)), "Right: camera in use")
+        XCTAssertEqual(Strings.sentence(.left, .unknown(.overheated)), "Phone too hot")
+        XCTAssertEqual(Strings.sentence(.right, .unknown(.noRoadSeen)), "Right: no road seen")
+    }
+
+    /// An arrival under a second is "close", never "0 seconds".
+    func testCloseCopy() {
+        XCTAssertEqual(Strings.sentence(.left, .approaching(.seconds(0))), "Left: car, close")
+        XCTAssertEqual(Strings.label(.approaching(.seconds(0))), "Car · close")
+    }
+
+    /// Phone-wide news is the same sentence for both sides: it is said once.
+    func testSameSentenceForBothSidesIsSaidOnce() {
+        let e = announce(previous: stale, current: [.left: .unknown(.overheated), .right: .unknown(.overheated)])
+        XCTAssertEqual(e?.text, "Phone too hot")
+        XCTAssertEqual(e?.haptic, .unknown)
+    }
+
+    func testPreviewOffForVoiceOverUnlessAsked() {
+        XCTAssertTrue(showsPreview(voiceOverRunning: false, arguments: ["GapCheck"]))
+        XCTAssertFalse(showsPreview(voiceOverRunning: true, arguments: ["GapCheck"]))
+        XCTAssertTrue(showsPreview(voiceOverRunning: true, arguments: ["GapCheck", "-showOverlay"]))
     }
 
     /// The big words on each side's banner. Like speech, nothing reads as "go".
@@ -36,6 +60,11 @@ final class FeedbackTests: XCTestCase {
         XCTAssertEqual(Strings.label(.unknown(.tooBright)), "Too bright")
         XCTAssertEqual(Strings.label(.unknown(.covered)), "Camera covered")
         XCTAssertEqual(Strings.label(.unknown(.viewBlocked)), "Blocked")
+        XCTAssertEqual(Strings.label(.unknown(.noPermission)), "Camera off in Settings")
+        XCTAssertEqual(Strings.label(.unknown(.unsupported)), "Not supported")
+        XCTAssertEqual(Strings.label(.unknown(.interrupted)), "Camera in use")
+        XCTAssertEqual(Strings.label(.unknown(.overheated)), "Too hot")
+        XCTAssertEqual(Strings.label(.unknown(.noRoadSeen)), "No road seen")
         XCTAssertEqual(priority(of: .approaching(.far)), .car)
         XCTAssertEqual(priority(of: .unknown(.notLevel)), .problem)
         XCTAssertEqual(priority(of: .clear), .noCars)
@@ -165,6 +194,25 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue(far.isOn)
         XCTAssertGreaterThan(near.frequencyHz, far.frequencyHz)
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
+    }
+}
+
+/// Invariant 1: nothing the app says or shows reads as permission to cross.
+final class BannedWordsTests: XCTestCase {
+    func testNoSentenceOrLabelSaysGo() throws {
+        let reasons: [UnknownReason] = [.stale, .notLevel, .tooDark, .tooBright, .covered, .viewBlocked, .noPermission,
+                                        .unsupported, .interrupted, .overheated, .noRoadSeen]
+        let arrivals: [Arrival] = [.seconds(0), .seconds(1), .seconds(7), .far, .unmeasured]
+        let states: [DirectionState] = [.clear] + reasons.map { .unknown($0) } + arrivals.map { .approaching($0) }
+        var texts = [Strings.paused, Strings.holdInstructions]
+        for state in states {
+            texts += [Strings.sentence(.left, state), Strings.sentence(.right, state), Strings.label(state)]
+        }
+        texts.append(Strings.status([.left: .clear, .right: .clear]))
+        let banned = try NSRegularExpression(pattern: #"\b(safe|go|cross now|clear to cross|all clear)\b"#, options: .caseInsensitive)
+        for text in texts {
+            XCTAssertNil(banned.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)), text)
+        }
     }
 }
 

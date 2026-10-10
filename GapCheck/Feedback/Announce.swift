@@ -80,13 +80,16 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
         guard let now = current[side], now != .unknown(.notLevel), isChange(from: previous[side], to: now) else { return nil }
         return utterance(side, now)
     }
-    guard !changed.isEmpty else { return nil }
+    // Phone-wide news ("Phone too hot") is the same sentence for both sides: say it once.
+    var seen = Set<String>()
+    let unique = changed.filter { seen.insert($0.text).inserted }
+    guard !unique.isEmpty else { return nil }
     let states = current.values
     // The "no cars" hum only when no side has a car or a problem.
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
         : states.contains(where: { if case .unknown = $0 { $0 != .unknown(.notLevel) } else { false } }) ? .unknown
         : .clear
-    let ordered = [SpeechPriority.car, .problem, .noCars].flatMap { p in changed.filter { $0.priority == p } }
+    let ordered = [SpeechPriority.car, .problem, .noCars].flatMap { p in unique.filter { $0.priority == p } }
     return FeedbackEvent(haptic: haptic, utterances: ordered)
 }
 
