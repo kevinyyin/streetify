@@ -37,10 +37,10 @@
 - [x] Haptics, tone, speech (not verified on device)
 - [x] State-change test
 - [x] Feedback redesign: one job per signal (2026-10-09) (not verified on device)
-- [x] Speech: same-side news waits instead of cutting in; waiting sentences are refreshed or dropped when their turn comes; tone silent until a frame reports tilt (2026-10-09) (not verified on device)
+- [x] Speech: same-side news waits instead of cutting in, except close warnings, which always cut in; waiting sentences are refreshed when their turn comes; the status after leveling out is always said; tone silent until a frame reports tilt (2026-10-09) (not verified on device)
 
 ## Debug overlay
-- [x] Segmentation outlines (YOLO11n-seg, screen only, own queue, skips frames when busy) tinted red ≤ 8 s, yellow facing us, green driving away (2026-10-09) (not verified on device: speed and heat with two cameras)
+- [x] Segmentation outlines (YOLO11n-seg, screen only, own queue, skips frames when busy; loaded only once the screen is visible, never with VoiceOver) tinted red ≤ 8 s, yellow facing us, green driving away (2026-10-09) (not verified on device: speed and heat with two cameras)
 - [x] Red sticks to a car until it leaves the picture or stands still with no red car ahead in its line; cars coming behind a red car are red too; direction (green) judged over 4 s (2026-10-09)
 
 ## Merged from `feature-fixing` (Nathan, Eric; 2026-10-09)
@@ -50,7 +50,8 @@
 - [x] Dark and flat reads "camera covered"; tilt keeps a car seen in the last second; watchdog stale re-arms the clear hold
 - [x] Preview off with VoiceOver (unless `-showOverlay`) and rendered off the warning pipeline; tone silent until the first tilt reading
 - [x] "close" instead of "0 seconds"; banned-words test (invariant 1); hold instructions on first launch and long press
-- [ ] Still on `feature-fixing`, not merged: segmentation outlines, people and bike warnings, partly-covered lens check (fires at night), face/compass/crossing aim checks, heartbeat tick, speech-queue refresh (dropped the status after leveling, delayed close warnings)
+- [x] Stop tracking build/ (its files stay in history from Nathan's commit; removing them needs a force-push, owner's call)
+- [ ] Still on `feature-fixing`, not merged: people and bike warnings, partly-covered lens check (fires at night), face/compass/crossing aim checks, heartbeat tick
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
