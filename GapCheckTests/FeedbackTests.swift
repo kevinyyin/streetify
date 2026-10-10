@@ -355,3 +355,24 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(highlight(trackWithDirection(heightAt: { 0.08 * (1 - 0.06 * $0) }), isRed: false), .away)
     }
 }
+
+/// Late outlines are moved with their car.
+final class MaskAlignmentTests: XCTestCase {
+    func testMaskIsCarriedWithItsCar() {
+        let old = CGRect(x: 0.2, y: 0.4, width: 0.2, height: 0.1)
+        let new = CGRect(x: 0.5, y: 0.4, width: 0.4, height: 0.2) // moved right and twice as close
+        let mask = CGRect(x: 0.25, y: 0.42, width: 0.1, height: 0.05)
+        let moved = carried(mask, from: old, to: new)
+        XCTAssertEqual(moved.minX, 0.6, accuracy: 1e-9)
+        XCTAssertEqual(moved.minY, 0.44, accuracy: 1e-9)
+        XCTAssertEqual(moved.width, 0.2, accuracy: 1e-9)
+        XCTAssertEqual(moved.height, 0.1, accuracy: 1e-9)
+    }
+
+    func testBoxAtAnEarlierFrame() {
+        var track = trackWithDirection(heightAt: { _ in 0.1 })
+        track.directionBoxes = (0...10).map { i in (Double(i) / 10, CGRect(x: Double(i) / 100, y: 0, width: 0.1, height: 0.1)) }
+        XCTAssertEqual(track.box(atSeconds: 0.5)?.minX ?? -1, 0.05, accuracy: 1e-9)
+        XCTAssertNil(track.box(atSeconds: 5))
+    }
+}
