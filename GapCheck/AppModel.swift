@@ -317,6 +317,7 @@ final class AppModel {
     /// safety net.
     private func tick() {
         speech.poll()
+        updateTone() // the tone comes back once a sentence has finished
         guard !isPaused else { return }
         for side in staleSides(lastUpdateSeconds: lastUpdateSeconds, nowSeconds: CACurrentMediaTime()) {
             let silent = silentSideState(fault: cameraFaults[side]?.reason)
@@ -331,9 +332,8 @@ final class AppModel {
     private func updateTone() {
         guard hasLevelReading, !isPaused else { return tone.apply(ToneSettings(isOn: false, frequencyHz: 0)) }
         let isMisaimed = panes.values.contains { $0.state == .unknown(.misaimed) }
-        let isCarComing = panes.values.contains { if case .approaching = $0.state { true } else { false } }
         tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees,
-                                headingErrorDegrees: isMisaimed ? headingErrorDegrees : nil, isCarComing: isCarComing))
+                                headingErrorDegrees: isMisaimed ? headingErrorDegrees : nil, isSpeaking: speech.isSpeaking))
     }
 
     /// After the grace period, a side still stale was never announced (it started that way, or came back from a

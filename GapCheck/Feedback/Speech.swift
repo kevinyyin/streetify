@@ -6,6 +6,8 @@ import UIKit
 /// has already passed is never announced late: the user hears what is true now, or nothing if that was just said.
 struct SpeechQueue {
     private var speaking: (utterance: Utterance, startedSeconds: Double)?
+    /// A sentence started and not reported finished (nor given up on); the tone waits while this is true.
+    var isSpeaking: Bool { speaking != nil }
     private var pending: [Utterance] = [] // at most one per side, oldest first
     private var lastSaid: [Side: String] = [:]
 
@@ -111,6 +113,9 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
             self?.finished(note.userInfo?[UIAccessibility.announcementStringValueUserInfoKey] as? String)
         }
     }
+
+    /// A sentence is playing; the tone pauses for it.
+    var isSpeaking: Bool { queue.isSpeaking }
 
     /// Queues sentences; call on main.
     func say(_ utterances: [Utterance]) {
