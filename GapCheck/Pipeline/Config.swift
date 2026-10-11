@@ -81,6 +81,11 @@ enum Config {
     /// The camera axis's horizontal part below this (pointing steeply up or down) gives no heading.
     static let headingMinHorizontalFraction = 0.5
 
+    /// An approaching car's center must move at least this much of the picture width to show where the street is.
+    static let turnedAroundMinDriftFraction = 0.02
+    /// This many approaching cars in a row drifting away from the street's side mean the phone is turned around.
+    static let turnedAroundMinCars = 2
+
     /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
     static let aimMinHz = 200.0

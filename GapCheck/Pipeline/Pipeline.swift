@@ -31,11 +31,13 @@ final class Pipeline {
     private let source: FrameSource
     private let detector: Detector
     private let tracker = Tracker()
-    private let decider = Decider()
+    private let decider: Decider
     private let queue: DispatchQueue
 
-    init(side: Side, source: FrameSource, detector: Detector) {
+    /// `checksTurnAround`: live cameras only; replayed footage was filmed any way round.
+    init(side: Side, source: FrameSource, detector: Detector, checksTurnAround: Bool = false) {
         self.side = side
+        decider = Decider(checksTurnAround: checksTurnAround)
         self.source = source
         self.detector = detector
         queue = DispatchQueue(label: "pipeline.\(side)")

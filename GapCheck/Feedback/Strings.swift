@@ -22,6 +22,7 @@ enum Strings {
         case .unknown(.facingUser): return "Turn the screen away from you"
         case .unknown(.misaimed): return "Turn the phone back toward the road"
         case .unknown(.moving): return "Hold still"
+        case .unknown(.turnedAround): return "Turn the phone around"
         }
     }
 
@@ -46,6 +47,7 @@ enum Strings {
         case .unknown(.facingUser): return "Screen faces you"
         case .unknown(.misaimed): return "Turn to road"
         case .unknown(.moving): return "Hold still"
+        case .unknown(.turnedAround): return "Phone backwards"
         }
     }
 
