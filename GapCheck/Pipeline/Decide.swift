@@ -125,7 +125,9 @@ final class Decider {
             lockedHeadingDegrees = nil // maybe a new crossing; the next car there locks again
         }
         if let lock = lockedHeadingDegrees, let heading = o.headingDegrees {
-            headingErrorDegrees = angleDifferenceDegrees(heading, lock)
+            // The road is a line: turning the phone around (rule 8's job) is not turning off the road.
+            let error = angleDifferenceDegrees(heading, lock)
+            headingErrorDegrees = min(error, 180 - error)
         } else {
             headingErrorDegrees = nil
         }
