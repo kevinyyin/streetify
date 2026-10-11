@@ -68,6 +68,8 @@ final class Decider {
     private let checksTurnAround: Bool
     /// Approaching cars already judged for the turn-around check, and whether the last few drifted the right way.
     private var judgedTrackIds = Set<Int>()
+    /// Frame time the phone was last moving or tilted: the 4 s direction windows hold those frames until it ages out.
+    private var lastUnsteadySeconds = -Double.infinity
     private var recentDriftsRight: [Bool] = []
 
     init(checksTurnAround: Bool = false) {
@@ -110,7 +112,10 @@ final class Decider {
     /// Road evidence, the street heading and crossing traffic, before the rules read them.
     private func noteAim(_ o: FrameObservation, _ tracks: [Track]) {
         let t = o.timestampSeconds
-        let canJudgeAim = o.isLevel && o.isStill // turning or walking slides and grows boxes too
+        // Walking or tilting slides and grows boxes too, and the direction windows (`travel`, drift, crossing) reach
+        // `Config.directionWindowSeconds` back: judge aim only once they hold no such frame.
+        if !o.isLevel || !o.isStill { lastUnsteadySeconds = t }
+        let canJudgeAim = t - lastUnsteadySeconds >= Config.directionWindowSeconds
         if canJudgeAim, tracks.contains(where: \.isCrossingView) {
             lastCrossingSeconds = t
             roadSeenSeconds = nil // it was looking across the road, not along it
@@ -137,7 +142,8 @@ final class Decider {
     /// of both pictures (front mirrored by its EXIF orientation), so an approaching car drifts toward smaller x.
     private func noteDrift(_ tracks: [Track]) {
         judgedTrackIds.formIntersection(tracks.map(\.id))
-        for track in tracks where track.travel == .toward && !judgedTrackIds.contains(track.id) {
+        for track in tracks where Config.streetVehicleLabels.contains(track.label) && track.travel == .toward
+            && !judgedTrackIds.contains(track.id) {
             guard let drift = track.driftFraction, abs(drift) >= Config.turnedAroundMinDriftFraction else { continue }
             judgedTrackIds.insert(track.id)
             recentDriftsRight = Array((recentDriftsRight + [drift < 0]).suffix(Config.turnedAroundMinCars))

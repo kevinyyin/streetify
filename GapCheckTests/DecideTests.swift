@@ -271,6 +271,27 @@ final class DecideTests: XCTestCase {
         XCTAssertEqual(d.headingErrorDegrees ?? -1, 0, accuracy: 1e-9)
     }
 
+    /// The drift and travel windows reach 4 s back; for that long after a walk or a tilt they still hold those frames
+    /// (review I1).
+    func testFramesFromAWalkStillInTheWindowDontCountForTurnAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(3, still: false), tracks: [])
+        _ = d.update(obs(5), tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)])
+        XCTAssertNotEqual(feed(d, from: 5.1, through: 6), .unknown(.turnedAround))
+    }
+
+    /// Cyclists also ride along the sidewalk, which is on the other side of the picture: they say nothing about where the
+    /// street is (review I1).
+    func testBicyclesDontCountForTurnAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        var bikes = [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)]
+        for i in bikes.indices { bikes[i].label = "bicycle" }
+        _ = d.update(obs(4), tracks: bikes)
+        XCTAssertNotEqual(feed(d, from: 4.1, through: 6), .unknown(.turnedAround))
+    }
+
     /// A parked car sliding sideways (the hand turning) is no evidence of which way the street lies.
     func testDriftOfANonApproachingCarDoesNotCount() {
         let d = Decider(checksTurnAround: true)
