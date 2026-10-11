@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import GapCheck
 
@@ -232,7 +233,7 @@ final class BannedWordsTests: XCTestCase {
                                         .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser, .misaimed, .moving, .turnedAround]
         let arrivals: [Arrival] = [.seconds(0), .seconds(1), .seconds(7), .far, .unmeasured]
         let states: [DirectionState] = [.clear] + reasons.map { .unknown($0) } + arrivals.map { .approaching($0) }
-        var texts = [Strings.paused, Strings.holdInstructions]
+        var texts = [Strings.paused, Strings.holdInstructions, Strings.voiceTip]
         for state in states {
             texts += [Strings.sentence(.left, state), Strings.sentence(.right, state), Strings.label(state)]
         }
@@ -392,5 +393,24 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(highlight(close(), isRed: true), .danger)
         XCTAssertEqual(highlight(parkedBehind, isRed: false), .facing)
         XCTAssertEqual(highlight(trackWithDirection(heightAt: { 0.08 * (1 - 0.06 * $0) }), isRed: false), .away)
+    }
+}
+
+/// Speech uses the best voice installed for the language; the basic one sounds synthetic.
+final class VoiceTests: XCTestCase {
+    private func v(_ id: String, _ q: AVSpeechSynthesisVoiceQuality, lang: String = "en-US", novelty: Bool = false,
+                   personal: Bool = false) -> VoiceInfo {
+        VoiceInfo(identifier: id, language: lang, quality: q, isNovelty: novelty, isPersonal: personal)
+    }
+
+    func testPrefersPremiumOverEnhancedOverDefault() {
+        XCTAssertEqual(bestVoice([v("a", .default), v("b", .premium), v("c", .enhanced)], language: "en-US")?.identifier, "b")
+    }
+
+    func testSkipsNoveltyPersonalAndOtherLanguages() {
+        let voices = [v("n", .premium, novelty: true), v("p", .premium, personal: true), v("f", .premium, lang: "fr-FR"),
+                      v("d", .default)]
+        XCTAssertEqual(bestVoice(voices, language: "en-US")?.identifier, "d")
+        XCTAssertNil(bestVoice([v("f", .premium, lang: "fr-FR")], language: "en-US"))
     }
 }

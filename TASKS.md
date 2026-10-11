@@ -64,7 +64,8 @@ Spec: docs/superpowers/specs/2026-10-10-field-test-fixes-design.md; plan: docs/s
 - [x] "Turn the phone around" from approaching cars drifting the wrong way (not verified on device: the front feed should read text backwards)
 - [x] Sideways hold: cameras toward the street, fingers off the lenses (not verified on device; landscape layout not seen in the simulator)
 - [x] Front/rear model (CFV ConvNeXt), stage 1: debug screen only (speed and accuracy not verified on device; flip `directionModelSuppressesRearCars` only after the curb field test)
-- [ ] Best installed voice; one-time tip when only the basic voice is installed
+- [x] Best installed voice; one-time tip when only the basic voice is installed (not verified on device)
+- [ ] Tone: recorded claves tick that speeds up toward level, waiting on the owner's sound files (claveshi.wav, clavelow.wav in GapCheck/Feedback/Sounds/)
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)

@@ -81,7 +81,7 @@ final class AppModel {
         announceAfterGrace()
         if !UserDefaults.standard.bool(forKey: Self.heardHoldKey) {
             UserDefaults.standard.set(true, forKey: Self.heardHoldKey)
-            speakHoldInstructions()
+            speakHoldInstructions(addingVoiceTip: speech.hasOnlyBasicVoice)
         }
         motion.deviceMotionUpdateInterval = 1.0 / 30
         // The magnetic frame adds the compass for the heading check; without a magnetometer, level still works.
@@ -106,8 +106,9 @@ final class AppModel {
 
     /// How to hold the phone (first launch, and the screen's long press / VoiceOver action). Unlike the status it doesn't
     /// restate the sides, so news it cuts off or holds up is said after it.
-    func speakHoldInstructions() {
-        speech.say([Utterance(side: nil, text: Strings.holdInstructions, priority: .car)])
+    func speakHoldInstructions(addingVoiceTip: Bool = false) {
+        let text = addingVoiceTip ? Strings.holdInstructions + " " + Strings.voiceTip : Strings.holdInstructions
+        speech.say([Utterance(side: nil, text: text, priority: .car)])
     }
 
     /// The app went to the background, where the cameras stop: say so while it still can, instead of leaving the last
