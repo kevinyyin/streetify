@@ -83,6 +83,8 @@ enum Config {
 
     /// An approaching car's center must move at least this much of the picture width to show where the street is.
     static let turnedAroundMinDriftFraction = 0.02
+    /// Only these show where the street is: bikes also ride along the sidewalk, on the other side of the picture.
+    static let streetVehicleLabels: Set<String> = ["car", "truck", "bus"]
     /// This many approaching cars in a row drifting away from the street's side mean the phone is turned around.
     static let turnedAroundMinCars = 2
 

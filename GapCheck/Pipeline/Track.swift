@@ -20,6 +20,8 @@ struct Track {
     var heights: [(t: Double, h: Double)]
     /// Boxes over `Config.directionWindowSeconds`, for `travel`: the screen's colors and Decide's road evidence.
     var directionBoxes: [(t: Double, box: CGRect)] = []
+    /// The detector's label (car, truck, bus, motorcycle, bicycle), latest match.
+    var label = "car"
     /// Frames in a row the front/rear model saw this car from behind (stage 1: the debug screen only).
     var rearFrames = 0
 
@@ -136,6 +138,7 @@ final class Tracker {
         for (i, j) in pairs {
             let box = detections[j].box
             tracks[i].box = box
+            tracks[i].label = detections[j].label
             tracks[i].lastSeenSeconds = t
             tracks[i].heights.append((t, box.height))
             tracks[i].heights.removeAll { $0.t < t - Config.historySeconds }
@@ -145,7 +148,7 @@ final class Tracker {
         for j in freeDetections.sorted() {
             let box = detections[j].box
             tracks.append(Track(id: nextId, box: box, firstSeenSeconds: t, lastSeenSeconds: t, heights: [(t, box.height)],
-                                directionBoxes: [(t, box)]))
+                                directionBoxes: [(t, box)], label: detections[j].label))
             nextId += 1
         }
         tracks.removeAll { t - $0.lastSeenSeconds > Config.trackLostSeconds }
