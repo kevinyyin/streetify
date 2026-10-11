@@ -36,10 +36,25 @@ final class FeedbackTests: XCTestCase {
     }
 
     /// Phone-wide news is the same sentence for both sides: it is said once.
-    func testSameSentenceForBothSidesIsSaidOnce() {
-        let e = announce(previous: stale, current: [.left: .unknown(.overheated), .right: .unknown(.overheated)])
-        XCTAssertEqual(e?.text, "Phone too hot")
-        XCTAssertEqual(e?.haptic, .unknown)
+    func testSameSentenceForBothSidesIsSaidOnce() throws {
+        let hot: [Side: DirectionState] = [.left: .unknown(.overheated), .right: .unknown(.overheated)]
+        let e = try XCTUnwrap(announce(previous: stale, current: hot))
+        XCTAssertEqual(e.haptic, .unknown)
+        var q = SpeechQueue()
+        XCTAssertEqual(q.add(e.utterances, atSeconds: 0, current: hot)?.text, "Phone too hot")
+        XCTAssertNil(q.finished(text: "Phone too hot", atSeconds: 1, current: hot))
+    }
+
+    /// If one side has moved on by the time the shared sentence plays, the other side still gets its own.
+    func testSharedSentenceStillSaidForTheSideThatKeepsIt() throws {
+        let e = try XCTUnwrap(announce(previous: stale, current: [.left: .unknown(.overheated), .right: .unknown(.overheated)]))
+        let car = utterance(.left, .approaching(.seconds(9)))
+        var q = SpeechQueue()
+        _ = q.add([car], atSeconds: 0)
+        XCTAssertNil(q.add(e.utterances, atSeconds: 0.2))
+        let now: [Side: DirectionState] = [.left: .unknown(.stale), .right: .unknown(.overheated)]
+        XCTAssertEqual(q.finished(text: car.text, atSeconds: 1.5, current: now)?.text, "Left: camera stopped")
+        XCTAssertEqual(q.finished(text: "Left: camera stopped", atSeconds: 2.5, current: now)?.text, "Phone too hot")
     }
 
     func testPreviewOffForVoiceOverUnlessAsked() {
@@ -303,11 +318,22 @@ final class SpeechQueueTests: XCTestCase {
     /// The status the user asked for covers both sides, so nothing it cut off is repeated after it.
     func testStatusReplacesEverything() {
         var q = SpeechQueue()
-        let status = Utterance(side: nil, text: "Left: blocked. Right: car, 6 seconds", priority: .car)
+        let status = Utterance(side: nil, text: "Left: blocked. Right: car, 6 seconds", priority: .car, replacesQueue: true)
         _ = q.add([carRight], atSeconds: 0)
         XCTAssertNil(q.add([blockedLeft], atSeconds: 0.2))
         XCTAssertEqual(q.add([status], atSeconds: 0.5), status)
         XCTAssertNil(q.finished(text: status.text, atSeconds: 2))
+    }
+
+    /// The hold instructions don't restate the sides: news they cut off or hold up is said after them, cars first.
+    func testHoldInstructionsKeepTheNews() {
+        var q = SpeechQueue()
+        let hold = Utterance(side: nil, text: Strings.holdInstructions, priority: .car)
+        _ = q.add([carRight], atSeconds: 0)
+        XCTAssertNil(q.add([blockedLeft], atSeconds: 0.2))
+        XCTAssertEqual(q.add([hold], atSeconds: 0.5), hold)
+        XCTAssertEqual(q.finished(text: hold.text, atSeconds: 4), carRight)
+        XCTAssertEqual(q.finished(text: carRight.text, atSeconds: 5.5), blockedLeft)
     }
 
     /// If the phone never reports a sentence finished, the next one plays after Config.maxUtteranceSeconds.

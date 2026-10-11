@@ -12,11 +12,14 @@ enum SpeechPriority: Int, Comparable {
     static func < (a: SpeechPriority, b: SpeechPriority) -> Bool { a.rawValue < b.rawValue }
 }
 
-/// One sentence about one side (nil = both sides, e.g. the status the user asked for).
+/// One sentence about one side (nil = no one side: the status the user asked for, the hold instructions).
 struct Utterance: Equatable {
     let side: Side?
     let text: String
     let priority: SpeechPriority
+    /// Supersedes everything waiting or playing (the status restates both sides; "paused" ends them), so none of it
+    /// is said after. Other sentences leave the queue alone.
+    var replacesQueue = false
 }
 
 /// How urgent a state is; also picks the banner color on screen (red, amber, gray).
@@ -83,16 +86,13 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
         guard let now = current[side], now != .unknown(.notLevel), isChange(from: previous[side], to: now) else { return nil }
         return utterance(side, now)
     }
-    // Phone-wide news ("Phone too hot") is the same sentence for both sides: say it once.
-    var seen = Set<String>()
-    let unique = changed.filter { seen.insert($0.text).inserted }
-    guard !unique.isEmpty else { return nil }
+    guard !changed.isEmpty else { return nil }
     let states = current.values
     // The "no cars" hum only when no side has a car or a problem.
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
         : states.contains(where: { if case .unknown = $0 { $0 != .unknown(.notLevel) } else { false } }) ? .unknown
         : .clear
-    let ordered = [SpeechPriority.closeCar, .car, .problem, .noCars].flatMap { p in unique.filter { $0.priority == p } }
+    let ordered = [SpeechPriority.closeCar, .car, .problem, .noCars].flatMap { p in changed.filter { $0.priority == p } }
     return FeedbackEvent(haptic: haptic, utterances: ordered)
 }
 

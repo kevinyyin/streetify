@@ -130,7 +130,7 @@ struct ContentView: View {
         for track in tracks {
             let e = track.estimate(atSeconds: t)
             let color = highlight(track, isRed: redIds.contains(track.id)).color
-            let mask = unused.filter { iou(masks[$0].box, track.box) >= 0.3 }.max { iou(masks[$0].box, track.box) < iou(masks[$1].box, track.box) }
+            let mask = unused.filter { iou(masks[$0].box, track.box) >= Config.maskMatchIoU }.max { iou(masks[$0].box, track.box) < iou(masks[$1].box, track.box) }
             if let mask {
                 unused.remove(mask)
                 fill(masks[mask], color, opacity: 0.55)

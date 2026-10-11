@@ -25,16 +25,11 @@ struct Track {
     /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Decide takes either as proof of a road.
     var travel: Travel {
         let s = directionBoxes.map { (t: $0.t, h: Double($0.box.height)) }
-        let n = Double(s.count)
-        guard let first = s.first, let last = s.last, last.t - first.t >= Config.historySeconds, s.count >= 5 else { return .unclear }
-        let tm = s.reduce(0) { $0 + $1.t } / n, hm = s.reduce(0) { $0 + $1.h } / n
-        let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
-        guard stt > 0, hm > 0 else { return .unclear }
-        let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
-        let residualSquares = s.reduce(0) { sum, p in let e = p.h - hm - slope * (p.t - tm); return sum + e * e }
-        let margin = Config.tauConfidenceSigmas * (residualSquares / (n - 2)).squareRoot() / stt.squareRoot()
-        if slope + margin < 0 && slope / hm < -Config.awayMinShrinkPerSecond { return .away }
-        if slope - margin > 0 && slope / hm > Config.awayMinShrinkPerSecond { return .toward }
+        guard let first = s.first, let last = s.last, last.t - first.t >= Config.historySeconds, s.count >= 5,
+              let fit = fitLine(s), fit.hm > 0 else { return .unclear }
+        let margin = Config.tauConfidenceSigmas * fit.slopeError
+        if fit.slope + margin < 0 && fit.slope / fit.hm < -Config.awayMinShrinkPerSecond { return .away }
+        if fit.slope - margin > 0 && fit.slope / fit.hm > Config.awayMinShrinkPerSecond { return .toward }
         return .unclear
     }
 
@@ -52,24 +47,30 @@ struct Track {
     /// Time to arrival = height / growth per second, from a least-squares line over the last `Config.historySeconds`.
     func estimate(atSeconds now: Double) -> ArrivalEstimate {
         let s = heights.filter { $0.t >= lastSeenSeconds - Config.historySeconds }
-        let n = Double(s.count)
-        let tm = s.reduce(0) { $0 + $1.t } / n
-        let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
-        guard lastSeenSeconds - firstSeenSeconds >= Config.historySeconds, s.count >= 3, stt > 0 else {
+        guard lastSeenSeconds - firstSeenSeconds >= Config.historySeconds, let fit = fitLine(s) else {
             return ArrivalEstimate(isTooNew: true, pointSeconds: nil, lowSeconds: nil)
         }
-        let hm = s.reduce(0) { $0 + $1.h } / n
-        let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
-        let residualSquares = s.reduce(0) { sum, p in
-            let e = p.h - hm - slope * (p.t - tm)
-            return sum + e * e
-        }
-        let slopeError = (residualSquares / (n - 2)).squareRoot() / stt.squareRoot()
         // The fit measures growth at the window's midpoint; subtract the time since then.
-        func tau(_ growth: Double) -> Double? { growth > 0 ? max(0, hm / growth - (now - tm)) : nil }
-        return ArrivalEstimate(isTooNew: false, pointSeconds: tau(slope),
-                               lowSeconds: tau(slope + Config.tauConfidenceSigmas * slopeError))
+        func tau(_ growth: Double) -> Double? { growth > 0 ? max(0, fit.hm / growth - (now - fit.tm)) : nil }
+        return ArrivalEstimate(isTooNew: false, pointSeconds: tau(fit.slope),
+                               lowSeconds: tau(fit.slope + Config.tauConfidenceSigmas * fit.slopeError))
     }
+}
+
+/// Least-squares line through height over time: mean time and height, slope, and the slope's standard error.
+/// Nil with fewer than 3 points or no spread in time.
+private func fitLine(_ s: [(t: Double, h: Double)]) -> (tm: Double, hm: Double, slope: Double, slopeError: Double)? {
+    let n = Double(s.count)
+    let tm = s.reduce(0) { $0 + $1.t } / n
+    let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
+    guard s.count >= 3, stt > 0 else { return nil }
+    let hm = s.reduce(0) { $0 + $1.h } / n
+    let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
+    let residualSquares = s.reduce(0) { sum, p in
+        let e = p.h - hm - slope * (p.t - tm)
+        return sum + e * e
+    }
+    return (tm, hm, slope, (residualSquares / (n - 2)).squareRoot() / stt.squareRoot())
 }
 
 /// Matches detections to tracks frame by frame. One per pipeline.

@@ -86,6 +86,12 @@ enum Config {
     static let lineMaxGapBoxWidths = 1.5
     /// Screen only: segmentation masks below this confidence are not drawn.
     static let minMaskConfidence: Float = 0.25
+    /// Screen only: of two masks overlapping more than this, only the more confident is drawn.
+    static let maskOverlapIoU = 0.5
+    /// Screen only: at most this many masks are drawn per frame, most confident first.
+    static let maxMaskCount = 30
+    /// Screen only: a mask overlapping a car's box at least this much is that car's outline.
+    static let maskMatchIoU = 0.3
 
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4

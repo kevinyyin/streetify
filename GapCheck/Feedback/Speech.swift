@@ -14,7 +14,7 @@ struct SpeechQueue {
     mutating func add(_ utterances: [Utterance], atSeconds now: Double, current: [Side: DirectionState] = [:]) -> Utterance? {
         if let s = speaking, now - s.startedSeconds > Config.maxUtteranceSeconds { speaking = nil } // never told it finished
         for u in utterances {
-            pending.removeAll { u.side == nil || $0.side == nil || $0.side == u.side }
+            pending.removeAll { u.replacesQueue || $0.replacesQueue || $0.side == u.side }
             pending.append(u)
         }
         if let s = speaking {
@@ -23,7 +23,7 @@ struct SpeechQueue {
             guard let started = start(next, atSeconds: now, current: current) else { return nil }
             if let side = s.utterance.side, side != started.side {
                 lastSaid[side] = nil // cut off, so not heard
-                if started.side != nil, !pending.contains(where: { $0.side == side }) {
+                if !started.replacesQueue, !pending.contains(where: { $0.side == side }) {
                     pending.append(s.utterance) // said again after the more urgent news, as it is by then
                 }
             }
@@ -40,9 +40,10 @@ struct SpeechQueue {
         return startNext(atSeconds: now, current: current)
     }
 
+    /// The most urgent waiting sentence; on a tie, what the user asked for (no side) goes first.
     private func nextPending() -> Utterance? {
         guard let top = pending.map(\.priority).max() else { return nil }
-        return pending.first { $0.priority == top }
+        return pending.first { $0.priority == top && $0.side == nil } ?? pending.first { $0.priority == top }
     }
 
     /// Starts the most urgent waiting sentence that is still news, dropping the ones that no longer are.
@@ -66,6 +67,9 @@ struct SpeechQueue {
         }
         if let side = u.side { lastSaid[side] = u.text } else { lastSaid = [:] }
         speaking = (u, now)
+        // Phone-wide news ("Phone too hot") is the same sentence for both sides: said once. Compared after the
+        // rebuild, so a side that has moved on still gets its own sentence.
+        pending.removeAll { $0.text == u.text }
         return u
     }
 }
