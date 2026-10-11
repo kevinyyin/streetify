@@ -5,9 +5,10 @@ import XCTest
 final class DecideTests: XCTestCase {
     private let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
 
-    private func obs(_ t: Double, level: Bool = true, luma: Double = 0.5, variance: Double = 100) -> FrameObservation {
+    private func obs(_ t: Double, level: Bool = true, luma: Double = 0.5, variance: Double = 100,
+                     faces: [CGRect] = []) -> FrameObservation {
         FrameObservation(timestampSeconds: t, isLevel: level,
-                    quality: ImageQuality(meanLuma: luma, laplacianVariance: variance), tile: tile)
+                         quality: ImageQuality(meanLuma: luma, laplacianVariance: variance), tile: tile, faceBoxes: faces)
     }
 
     /// A Decider that has already seen a moving car, so an empty road can read "no cars".
@@ -168,6 +169,14 @@ final class DecideTests: XCTestCase {
     func testNearParkedCarAllowsClear() {
         let parked = parkedTrack(CGRect(x: 0, y: 0.4, width: 0.2, height: 0.15))
         XCTAssertEqual(feed(seen(), from: 1.5, through: 3.0, tracks: [parked]), .clear)
+    }
+
+    /// The front camera seeing the user's face: the phone is held like a phone, not edge-on.
+    func testFaceFillingTheFrontCameraIsFacingUser() {
+        let d = seen()
+        XCTAssertEqual(d.update(obs(1.5, faces: [CGRect(x: 0.3, y: 0.3, width: 0.4, height: 0.3)]), tracks: []),
+                       .unknown(.facingUser))
+        XCTAssertNil(d.roadSeenSeconds)
     }
 }
 

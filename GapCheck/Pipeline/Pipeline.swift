@@ -55,7 +55,8 @@ final class Pipeline {
         let tracks = tracker.update(detections, atSeconds: frame.timestampSeconds, orientation: frame.orientation)
         let observation = FrameObservation(timestampSeconds: frame.timestampSeconds, isLevel: frame.isLevel,
                                            quality: imageQuality(frame.pixelBuffer), tile: frameTileRect(frame),
-                                           blockerBoxes: found.filter { Config.blockerLabels.contains($0.label) }.map(\.box))
+                                           blockerBoxes: found.filter { Config.blockerLabels.contains($0.label) }.map(\.box),
+                                           faceBoxes: found.filter { $0.label == Config.faceLabel }.map(\.box))
         let state = decider.update(observation, tracks: tracks)
         onUpdate?(PipelineUpdate(side: side, frame: frame, detections: detections, tracks: tracks, state: state))
     }

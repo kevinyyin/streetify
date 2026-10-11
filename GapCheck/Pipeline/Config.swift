@@ -22,6 +22,10 @@ enum Config {
     static let vehicleLabels: Set<String> = ["car", "truck", "bus", "motorcycle", "bicycle"]
     /// COCO classes that can hide the road (rule 5) but are never tracked as cars.
     static let blockerLabels: Set<String> = ["person"]
+    /// Label given to the front camera's face boxes; never tracked.
+    static let faceLabel = "face"
+    /// Faces covering this fraction of the front camera's picture mean the screen faces the user.
+    static let faceMinAreaFraction = 0.05
     /// Detections below this confidence are ignored; lower means more detections.
     static let minDetectionConfidence: Float = 0.25
 

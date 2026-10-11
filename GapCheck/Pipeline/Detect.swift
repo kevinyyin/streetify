@@ -86,30 +86,38 @@ func merge(whole: [Detection], tile: [Detection], tileRect: CGRect) -> [Detectio
 final class Detector {
     private let wholeRequest: VNCoreMLRequest
     private let tileRequest: VNCoreMLRequest
+    /// Front camera only: a face filling the picture means the screen faces the user, not down the road.
+    private let faceRequest: VNDetectFaceRectanglesRequest?
 
-    init() throws {
+    init(detectsFaces: Bool = false) throws {
         let model = try VNCoreMLModel(for: yolo11n(configuration: MLModelConfiguration()).model)
         wholeRequest = VNCoreMLRequest(model: model)
         wholeRequest.imageCropAndScaleOption = .scaleFit // the default .centerCrop drops the frame edges, where close cars are
         tileRequest = VNCoreMLRequest(model: model)
         tileRequest.imageCropAndScaleOption = .scaleFit
+        faceRequest = detectsFaces ? VNDetectFaceRectanglesRequest() : nil
     }
 
+    /// Vehicles and blockers (whole frame and tile merged), then faces labelled `Config.faceLabel`.
     func detect(_ frame: Frame) throws -> [Detection] {
         let found = try detectSeparately(frame)
-        return merge(whole: found.whole, tile: found.tile, tileRect: tileRequest.regionOfInterest)
+        return merge(whole: found.whole, tile: found.tile, tileRect: tileRequest.regionOfInterest) + found.faces
     }
 
-    /// Both requests' vehicles and blockers; tile boxes are mapped to whole-frame coordinates.
-    func detectSeparately(_ frame: Frame) throws -> (whole: [Detection], tile: [Detection]) {
+    /// Both requests' vehicles and blockers, and faces if asked for; tile boxes are mapped to whole-frame coordinates.
+    func detectSeparately(_ frame: Frame) throws -> (whole: [Detection], tile: [Detection], faces: [Detection]) {
         let tile = frameTileRect(frame)
         tileRequest.regionOfInterest = tile
-        try VNImageRequestHandler(cvPixelBuffer: frame.pixelBuffer, orientation: frame.orientation)
-            .perform([wholeRequest, tileRequest])
+        var requests: [VNRequest] = [wholeRequest, tileRequest]
+        if let faceRequest { requests.append(faceRequest) }
+        try VNImageRequestHandler(cvPixelBuffer: frame.pixelBuffer, orientation: frame.orientation).perform(requests)
         let tileBoxes = try objects(tileRequest.results).map {
             Detection(box: mapFromTile($0.box, tile: tile), label: $0.label, confidence: $0.confidence)
         }
-        return (try objects(wholeRequest.results), tileBoxes)
+        let faces = (faceRequest?.results ?? []).map {
+            Detection(box: $0.boundingBox, label: Config.faceLabel, confidence: $0.confidence)
+        }
+        return (try objects(wholeRequest.results), tileBoxes, faces)
     }
 }
 
