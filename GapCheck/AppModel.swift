@@ -246,7 +246,8 @@ final class AppModel {
     private func run(_ source: FrameSource, on side: Side, detectsFaces: Bool = false) {
         pipelines[side]?.stop()
         guard let detector = try? Detector(detectsFaces: detectsFaces) else { return } // no model: no pipeline, the side stays Unknown
-        let pipeline = Pipeline(side: side, source: source, detector: detector, checksTurnAround: source is LiveCameraSource)
+        let pipeline = Pipeline(side: side, source: source, detector: detector, orientation: try? CarOrientationClassifier(),
+                                checksTurnAround: source is LiveCameraSource)
         pipeline.onUpdate = { [weak self] update in
             guard let self else { return }
             if let frame = update.frame, self.previewOn.withLock({ $0 }) { self.renderPreview(frame, side: side) }

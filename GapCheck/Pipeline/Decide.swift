@@ -150,7 +150,7 @@ final class Decider {
         }
         if let reason = qualityProblem(o.quality) { return .unknown(reason) }
 
-        let approaching = tracks.filter(countsAsComing).map { $0.estimate(atSeconds: t) }
+        let approaching = tracks.filter { countsAsComing($0) }.map { $0.estimate(atSeconds: t) }
             .filter { $0.isTooNew || ($0.lowSeconds ?? .infinity) < Config.approachWindowSeconds }
         if !approaching.isEmpty {
             lastApproachSeconds = t
@@ -195,9 +195,10 @@ extension Decider {
 }
 
 /// Rule 4 only counts cars that may be coming: one shrinking for sure over the direction window has already passed
-/// (approved by the owner 2026-10-10, invariant 3). Too-new tracks still count; they may be close.
-func countsAsComing(_ track: Track) -> Bool {
-    track.travel != .away
+/// (approved by the owner 2026-10-10, invariant 3). Too-new tracks still count; they may be close. Seen from behind
+/// (the front/rear model) counts too until the owner turns `Config.directionModelSuppressesRearCars` on.
+func countsAsComing(_ track: Track, suppressesRear: Bool = Config.directionModelSuppressesRearCars) -> Bool {
+    track.travel != .away && !(suppressesRear && track.isSeenFromBehind)
 }
 
 /// Rule 3. A dark, flat picture is a covered lens, not night (a night street still has lights in it).

@@ -268,6 +268,14 @@ final class DecideTests: XCTestCase {
         let parked = { (id: Int) in trackWithDirection(heightAt: { _ in 0.1 }, xAt: { 0.5 + 0.1 * $0 / 4 }, id: id) }
         XCTAssertNotEqual(feed(d, from: 4, through: 6, tracks: [parked(1), parked(2)]), .unknown(.turnedAround))
     }
+
+    /// Seen from behind silences a car only once the owner turns it on (after the curb field test).
+    func testRearCarCountsUntilEnabled() {
+        var t = makeTrack(approachingHeights(tauAtEndSeconds: 8.5, heightAtEnd: 0.02))
+        t.rearFrames = 3
+        XCTAssertTrue(countsAsComing(t, suppressesRear: false))
+        XCTAssertFalse(countsAsComing(t, suppressesRear: true))
+    }
 }
 
 /// The live watchdog runs on main from host arrival times, so a hung pipeline or an ended replay still goes stale.

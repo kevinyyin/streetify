@@ -35,6 +35,7 @@ xcodegen generate
 xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' -collect-test-diagnostics never test
 xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' -collect-test-diagnostics never test -only-testing:GapCheckTests/<Class>
 .venv/bin/yolo export model=yolo11n.pt format=coreml nms=True imgsz=640   # then move yolo11n.mlpackage to GapCheck/Pipeline/
+.venv/bin/python tools/export_car_orientation.py   # front/rear model; needs tools/convnext-multi-weak.pth (see the script) and timm
 ```
 
 Model export venv: Python 3.12 with torch 2.7, coremltools 9.0, numpy<2.3 (coremltools fails on Python 3.14 with torch 2.14). Rebuild it with `"$(brew --prefix python@3.12)/bin/python3.12" -m venv .venv && .venv/bin/pip install "torch==2.7.*" "torchvision==0.22.*" ultralytics "coremltools==9.0" "numpy<2.3"`.

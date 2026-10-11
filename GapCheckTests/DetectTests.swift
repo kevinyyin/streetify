@@ -87,5 +87,11 @@ final class DetectTests: XCTestCase {
         let frame = makeFrame(makeLumaBuffer(width: 1920, height: 1080) { _, _ in 0 })
         XCTAssertEqual(try Detector().detect(frame), [])
     }
+
+    /// A car box past the picture edge is cropped to the picture; Vision throws on a region outside it.
+    func testCropIsClampedToThePicture() {
+        XCTAssertEqual(clampedCrop(CGRect(x: 0.75, y: -0.25, width: 0.5, height: 0.5)), CGRect(x: 0.75, y: 0, width: 0.25, height: 0.25))
+        XCTAssertNil(clampedCrop(CGRect(x: 1.2, y: 0.5, width: 0.1, height: 0.1)))
+    }
 }
 

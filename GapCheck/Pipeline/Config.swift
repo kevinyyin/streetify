@@ -86,6 +86,17 @@ enum Config {
     /// This many approaching cars in a row drifting away from the street's side mean the phone is turned around.
     static let turnedAroundMinCars = 2
 
+    /// Front/rear model (CFV ConvNeXt): smaller crops are far outside its training data (parked cars about 3 m away).
+    static let directionModelMinHeightPixels = 112.0
+    /// At most this many crops classified per frame, largest first.
+    static let directionModelMaxCropsPerFrame = 2
+    /// A crop at least this likely back-left, back or back-right counts as seen from behind for that frame.
+    static let directionModelRearProbability = 0.8
+    /// Seen from behind this many frames in a row: the car is going away.
+    static let directionModelRearFrames = 3
+    /// Stage 1: the verdict only shows on screen. Flip after the curb field test confirms it on real passing cars.
+    static let directionModelSuppressesRearCars = false
+
     /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
     static let aimMinHz = 200.0
