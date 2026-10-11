@@ -1,10 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one screen. Sighted judges see the two directions stacked (left on top), each with a colored status bar over
-/// its camera; VoiceOver hears one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
+/// The one screen. Sighted judges see the two directions stacked (left on top), or side by side (left first) when the
+/// phone is held sideways, each with a colored status bar over its camera; VoiceOver hears one status item. Tapping it
+/// speaks the status again. Replay buttons sit below for testers.
 struct ContentView: View {
     let model: AppModel
+    /// Compact height = the phone is sideways (the hold since 2026-10-10): the two feeds go side by side.
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isImporting = false
     @State private var importSide: Side = .right
 
@@ -12,8 +15,12 @@ struct ContentView: View {
         VStack(spacing: 12) {
             VStack(spacing: 10) {
                 levelLine
-                section(.left)
-                section(.right)
+                let sections = verticalSizeClass == .compact ? AnyLayout(HStackLayout(spacing: 10))
+                    : AnyLayout(VStackLayout(spacing: 10))
+                sections {
+                    section(.left)
+                    section(.right)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { model.speakStatus() }
