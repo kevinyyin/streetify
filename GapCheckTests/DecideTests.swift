@@ -6,10 +6,10 @@ final class DecideTests: XCTestCase {
     private let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
 
     private func obs(_ t: Double, level: Bool = true, luma: Double = 0.5, variance: Double = 100,
-                     faces: [CGRect] = [], heading: Double? = nil) -> FrameObservation {
+                     faces: [CGRect] = [], heading: Double? = nil, still: Bool = true) -> FrameObservation {
         FrameObservation(timestampSeconds: t, isLevel: level,
                          quality: ImageQuality(meanLuma: luma, laplacianVariance: variance), tile: tile, faceBoxes: faces,
-                         headingDegrees: heading)
+                         headingDegrees: heading, isStill: still)
     }
 
     /// A Decider that has already seen a moving car, so an empty road can read "no cars".
@@ -207,6 +207,27 @@ final class DecideTests: XCTestCase {
         _ = d.update(obs(0, heading: 90), tracks: [movingTrack])
         XCTAssertNotEqual(d.update(obs(0.1, heading: nil), tracks: []), .unknown(.misaimed))
         XCTAssertNil(d.headingErrorDegrees)
+    }
+
+    /// Curb only: while the phone moves, box growth says nothing about cars.
+    func testMovingIsUnknown() {
+        XCTAssertEqual(seen().update(obs(0, still: false), tracks: []), .unknown(.moving))
+    }
+
+    func testMovingKeepsACarJustSeen() {
+        let d = Decider()
+        let car = d.update(obs(1.5), tracks: [approachingTrack])
+        XCTAssertEqual(d.update(obs(1.6, still: false), tracks: []), car)
+        XCTAssertEqual(d.update(obs(2.6, still: false), tracks: []), .unknown(.moving))
+    }
+
+    func testMovingBeatsNotLevel() {
+        XCTAssertEqual(Decider().update(obs(0, level: false, still: false), tracks: []), .unknown(.moving))
+    }
+
+    /// Replayed footage never says "Hold still".
+    func testReplayFramesAreStill() {
+        XCTAssertTrue(makeFrame(makeLumaBuffer(width: 8, height: 8) { _, _ in 128 }).isStill)
     }
 }
 

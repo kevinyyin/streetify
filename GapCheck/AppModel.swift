@@ -23,6 +23,8 @@ final class AppModel {
     var panes: [Side: Pane] = [.left: Pane(), .right: Pane()]
     private(set) var isLevel = false
     private(set) var tiltErrorDegrees = 90.0
+    /// Hand-held motion RMS in g: the calibration readout for `Config.movingAccelerationG`.
+    private(set) var motionG = 0.0
     /// True while the output volume is 0, so speech can't be heard.
     private(set) var isMuted = false
     /// False while VoiceOver is on (nobody sees the screen) unless launched with `-showOverlay`.
@@ -36,6 +38,7 @@ final class AppModel {
     @ObservationIgnored private let sessionQueue = DispatchQueue(label: "session", qos: .userInitiated)
     @ObservationIgnored private let motion = CMMotionManager()
     @ObservationIgnored private let level = LevelGate()
+    @ObservationIgnored private let still = StillGate()
     @ObservationIgnored private var pipelines: [Side: Pipeline] = [:]
     @ObservationIgnored private let ciContext = CIContext()
     @ObservationIgnored private let previewQueue = DispatchQueue(label: "preview", qos: .utility)
@@ -181,7 +184,8 @@ final class AppModel {
         let cameras: [(position: AVCaptureDevice.Position, side: Side)] = [(.back, backSide), (.front, frontSide)]
         for (position, side) in cameras {
             do {
-                let camera = try LiveCameraSource(session: session, position: position, motion: motion, level: level)
+                let camera = try LiveCameraSource(session: session, position: position, motion: motion, level: level,
+                                                  still: still)
                 observePressure(camera.device)
                 run(camera, on: side, detectsFaces: position == .front)
             } catch {
@@ -300,6 +304,7 @@ final class AppModel {
                 self.hasLevelReading = true
                 self.tiltErrorDegrees = frame.tiltErrorDegrees
                 self.headingErrorDegrees = update.headingErrorDegrees
+                self.motionG = frame.motionG
             }
             self.updateTone()
             self.scheduleAnnouncement()

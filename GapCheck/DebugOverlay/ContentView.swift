@@ -51,6 +51,8 @@ struct ContentView: View {
             } else {
                 Text("Tilted \(Int(model.tiltErrorDegrees.rounded()))°").foregroundStyle(.orange)
             }
+            Text("Motion \(String(format: "%.2f", model.motionG)) g")
+                .foregroundStyle(model.motionG > Config.movingAccelerationG ? .orange : .gray)
             if model.isMuted {
                 Label("Volume off", systemImage: "speaker.slash").foregroundStyle(.orange)
             }

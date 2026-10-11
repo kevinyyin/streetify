@@ -50,6 +50,31 @@ final class LevelGate {
     }
 }
 
+/// Curb only: whether the phone is held still, from the user acceleration (gravity removed). One gate for both cameras,
+/// like `LevelGate`. Still again only after `Config.historySeconds` without a moving sample, so the arrival-time fit
+/// never holds frames taken while walking.
+final class StillGate {
+    private struct Samples {
+        var squares: [(t: Double, squareG: Double)] = []
+        var latestSeconds = -Double.infinity
+        var lastMovingSeconds = -Double.infinity
+    }
+    private let samples = OSAllocatedUnfairLock(initialState: Samples())
+
+    /// Feeds one sample (userAcceleration magnitude in g, at frame time) and returns whether the phone is still, and the
+    /// RMS over `Config.stillWindowSeconds`. Samples may arrive slightly out of order (two cameras).
+    func update(accelerationG: Double, atSeconds t: Double) -> (isStill: Bool, rmsG: Double) {
+        samples.withLock { s in
+            s.latestSeconds = max(s.latestSeconds, t)
+            s.squares.append((t, accelerationG * accelerationG))
+            s.squares.removeAll { $0.t < s.latestSeconds - Config.stillWindowSeconds }
+            let rms = s.squares.isEmpty ? 0 : (s.squares.reduce(0) { $0 + $1.squareG } / Double(s.squares.count)).squareRoot()
+            if rms > Config.movingAccelerationG { s.lastMovingSeconds = max(s.lastMovingSeconds, t) }
+            return (s.latestSeconds - s.lastMovingSeconds >= Config.historySeconds, rms)
+        }
+    }
+}
+
 /// Gravity in device coordinates (CMDeviceMotion.gravity) to hold, pitch and roll.
 func attitude(gravityX x: Double, gravityY y: Double, gravityZ z: Double) -> Attitude {
     let hold: Hold = abs(x) > abs(y)

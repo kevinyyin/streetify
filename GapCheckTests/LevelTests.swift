@@ -91,3 +91,36 @@ final class LevelBufferTests: XCTestCase {
         XCTAssertFalse(gate.update(nil))         // no motion data: not level
     }
 }
+
+/// Curb only: walking moves the phone, which makes every box grow as if a car were coming.
+final class StillGateTests: XCTestCase {
+    /// 20 samples/s (two cameras at 10 fps), `g(t)` = userAcceleration magnitude in g.
+    private func feed(_ gate: StillGate, from: Double, to: Double, g: (Double) -> Double) -> Bool {
+        var still = true
+        for t in stride(from: from, through: to, by: 0.05) { still = gate.update(accelerationG: g(t), atSeconds: t).isStill }
+        return still
+    }
+
+    func testSwayIsMoving() {
+        XCTAssertFalse(feed(StillGate(), from: 0, to: 1, g: { 0.2 * abs(sin(2 * .pi * 2 * $0)) }))
+    }
+
+    func testTremorIsStill() {
+        XCTAssertTrue(feed(StillGate(), from: 0, to: 3, g: { _ in 0.01 }))
+    }
+
+    /// After stopping, the arrival-time window (1.5 s) must hold no walking frames before cars are judged again.
+    func testStillOnlyAfterHistorySeconds() {
+        let gate = StillGate()
+        _ = feed(gate, from: 0, to: 1, g: { _ in 0.2 })
+        XCTAssertFalse(feed(gate, from: 1.05, to: 2.4, g: { _ in 0.01 }))
+        XCTAssertTrue(feed(gate, from: 2.45, to: 3.6, g: { _ in 0.01 }))
+    }
+
+    /// Both cameras feed one gate, so frame times arrive interleaved and slightly out of order.
+    func testOutOfOrderSamplesFromTwoCameras() {
+        let gate = StillGate()
+        for i in 0..<40 { _ = gate.update(accelerationG: 0.2, atSeconds: Double(i) * 0.05 + (i % 2 == 0 ? 0.02 : 0)) }
+        XCTAssertFalse(gate.update(accelerationG: 0.2, atSeconds: 1.99).isStill)
+    }
+}

@@ -57,8 +57,12 @@ enum Config {
     static let blockedFraction = 0.3
     /// With no moving vehicle seen for this long, an empty picture no longer reads "no cars" but "no road seen".
     static let roadEvidenceSeconds = 300.0
-    /// While tilted, a car seen this recently is still reported ("car", no time).
-    static let tiltCarMemorySeconds = 1.0
+    /// While the phone can't judge cars (moving, tilted), a car seen this recently is still reported as last said.
+    static let carMemorySeconds = 1.0
+    /// RMS window for telling walking from standing.
+    static let stillWindowSeconds = 1.0
+    /// Hand-held userAcceleration RMS above this is walking. Calibrate on device (the debug screen shows it).
+    static let movingAccelerationG = 0.06
 
     /// A car sliding sideways at least this many box widths per second without growing crosses the view: misaimed.
     static let misaimSidewaysBoxWidthsPerSecond = 1.0
