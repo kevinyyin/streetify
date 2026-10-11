@@ -84,8 +84,12 @@ final class Decider {
     private func firstFiringRule(_ o: FrameObservation, _ tracks: [Track]) -> DirectionState? {
         let t = o.timestampSeconds
         if !o.isLevel {
-            // Tilting doesn't make a car that was just seen go away.
-            if let seen = lastApproachSeconds, t - seen <= Config.tiltCarMemorySeconds { return .approaching(.unmeasured) }
+            // Tilting doesn't make a car that was just seen go away. It keeps the car as last reported, so the tilt
+            // itself is no news: nothing is spoken over the tone.
+            if let seen = lastApproachSeconds, t - seen <= Config.tiltCarMemorySeconds {
+                if case .approaching = state { return state }
+                return .approaching(.unmeasured)
+            }
             return .unknown(.notLevel)
         }
         if let reason = qualityProblem(o.quality) { return .unknown(reason) }

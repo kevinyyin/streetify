@@ -9,11 +9,9 @@ struct SegmentMask {
     let image: CGImage
 }
 
-/// YOLO11n-seg on its own queue, for the screen. A frame that arrives while it is busy is skipped, so it never
-/// slows the pipeline that makes the warnings.
+/// YOLO11n-seg on its own queue, for the screen. A frame that arrives while it is busy is skipped, so at most one
+/// outline runs at a time next to the pipelines that make the warnings.
 final class Segmenter {
-    var onMasks: (([SegmentMask]) -> Void)?
-
     private let request: VNCoreMLRequest
     private let queue = DispatchQueue(label: "segment", qos: .utility)
     private let lock = NSLock()
@@ -25,8 +23,8 @@ final class Segmenter {
         request.imageCropAndScaleOption = .scaleFit
     }
 
-    /// Call from any queue; returns at once.
-    func submit(_ frame: Frame) {
+    /// Call from any queue; returns at once. `onMasks` runs on the segment queue, or never if the frame is skipped.
+    func submit(_ frame: Frame, onMasks: @escaping ([SegmentMask]) -> Void) {
         lock.lock()
         guard !isBusy else { return lock.unlock() }
         isBusy = true
@@ -36,7 +34,7 @@ final class Segmenter {
             self.lock.lock()
             self.isBusy = false
             self.lock.unlock()
-            self.onMasks?(masks)
+            onMasks(masks)
         }
     }
 
@@ -45,11 +43,10 @@ final class Segmenter {
         let arrays = (request.results as? [VNCoreMLFeatureValueObservation] ?? []).compactMap(\.featureValue.multiArrayValue)
         guard let predictions = arrays.first(where: { $0.shape.count == 3 }),
               let protos = arrays.first(where: { $0.shape.count == 4 }) else { return [] }
-        let w = Double(CVPixelBufferGetWidth(frame.pixelBuffer)), h = Double(CVPixelBufferGetHeight(frame.pixelBuffer))
-        let isSideways = [.left, .right, .leftMirrored, .rightMirrored].contains(frame.orientation)
+        let size = orientedSizePixels(frame)
         return decodeSegments(predictions: floats(predictions), protos: floats(protos),
                               anchorCount: predictions.shape[2].intValue, protoSize: protos.shape[3].intValue,
-                              imageWidth: isSideways ? h : w, imageHeight: isSideways ? w : h)
+                              imageWidthPixels: size.width, imageHeightPixels: size.height)
     }
 }
 
@@ -62,21 +59,21 @@ private let classCount = 80
 /// Turns raw YOLO-seg output into masks. `predictions` is [4 box + 80 classes + 32 coefficients] × anchors, boxes
 /// in model-input pixels; `protos` is 32 × protoSize × protoSize. The model saw the image letterboxed (scaleFit).
 func decodeSegments(predictions p: [Float], protos: [Float], anchorCount n: Int, protoSize: Int,
-                    imageWidth: Double, imageHeight: Double) -> [SegmentMask] {
+                    imageWidthPixels: Double, imageHeightPixels: Double) -> [SegmentMask] {
     struct Candidate { let anchor: Int; let score: Float; let rect: CGRect } // rect in model-input pixels, top-left origin
     var candidates: [Candidate] = []
     for a in 0..<n {
-        guard let score = maskedClassIds.map({ p[(4 + $0) * n + a] }).max(), score >= Config.minMaskConfidence else { continue }
+        guard let score = maskedClassIds.lazy.map({ p[(4 + $0) * n + a] }).max(), score >= Config.minMaskConfidence else { continue }
         let cx = Double(p[a]), cy = Double(p[n + a]), bw = Double(p[2 * n + a]), bh = Double(p[3 * n + a])
         candidates.append(Candidate(anchor: a, score: score, rect: CGRect(x: cx - bw / 2, y: cy - bh / 2, width: bw, height: bh)))
     }
     var kept: [Candidate] = []
-    for c in candidates.sorted(by: { $0.score > $1.score }) where kept.count < 30 {
-        if !kept.contains(where: { iou($0.rect, c.rect) > 0.5 }) { kept.append(c) }
+    for c in candidates.sorted(by: { $0.score > $1.score }) where kept.count < Config.maxMaskCount {
+        if !kept.contains(where: { iou($0.rect, c.rect) > Config.maskOverlapIoU }) { kept.append(c) }
     }
 
-    let scale = min(modelInputPixels / imageWidth, modelInputPixels / imageHeight)
-    let padX = (modelInputPixels - imageWidth * scale) / 2, padY = (modelInputPixels - imageHeight * scale) / 2
+    let scale = min(modelInputPixels / imageWidthPixels, modelInputPixels / imageHeightPixels)
+    let padX = (modelInputPixels - imageWidthPixels * scale) / 2, padY = (modelInputPixels - imageHeightPixels * scale) / 2
     let protoScale = Double(protoSize) / modelInputPixels
     let plane = protoSize * protoSize
     return kept.compactMap { c in
@@ -99,8 +96,8 @@ func decodeSegments(predictions p: [Float], protos: [Float], anchorCount n: Int,
         }
         guard let image = rgbaImage(pixels, width: x1 - x0, height: y1 - y0) else { return nil }
         // Proto grid → model input → image pixels → Vision-normalized, origin bottom-left.
-        func imageX(_ gx: Int) -> Double { (Double(gx) / protoScale - padX) / scale / imageWidth }
-        func imageY(_ gy: Int) -> Double { (Double(gy) / protoScale - padY) / scale / imageHeight }
+        func imageX(_ gx: Int) -> Double { (Double(gx) / protoScale - padX) / scale / imageWidthPixels }
+        func imageY(_ gy: Int) -> Double { (Double(gy) / protoScale - padY) / scale / imageHeightPixels }
         let box = CGRect(x: imageX(x0), y: 1 - imageY(y1), width: imageX(x1) - imageX(x0), height: imageY(y1) - imageY(y0))
         return SegmentMask(box: box, image: image)
     }

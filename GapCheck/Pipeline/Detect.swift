@@ -115,10 +115,16 @@ final class Detector {
 
 /// The tile for a frame in its oriented (upright) dimensions.
 func frameTileRect(_ frame: Frame) -> CGRect {
+    let size = orientedSizePixels(frame)
+    return tileRect(orientedWidthPixels: size.width, orientedHeightPixels: size.height)
+}
+
+/// A frame's size as Vision sees it, once its orientation has turned it upright.
+func orientedSizePixels(_ frame: Frame) -> (width: Double, height: Double) {
     let w = Double(CVPixelBufferGetWidth(frame.pixelBuffer)), h = Double(CVPixelBufferGetHeight(frame.pixelBuffer))
     switch frame.orientation {
-    case .left, .right, .leftMirrored, .rightMirrored: return tileRect(orientedWidthPixels: h, orientedHeightPixels: w)
-    default: return tileRect(orientedWidthPixels: w, orientedHeightPixels: h)
+    case .left, .right, .leftMirrored, .rightMirrored: return (h, w)
+    default: return (w, h)
     }
 }
 

@@ -51,6 +51,7 @@
 - [x] Preview off with VoiceOver (unless `-showOverlay`) and rendered off the warning pipeline; tone silent until the first tilt reading
 - [x] "close" instead of "0 seconds"; banned-words test (invariant 1); hold instructions on first launch and long press
 - [x] Stop tracking build/ (its files stay in history from Nathan's commit; removing them needs a force-push, owner's call)
+- [x] Review fixes (2026-10-09): hold instructions no longer drop car news; tilt keeps the car as last said (nothing spoken over the tone); "Phone too hot" de-duplicated in the speech queue so a side that moved on keeps its own sentence; nothing said and tone off while paused; no "camera stopped" as an interruption ends or after a quick pause and resume; faults survive frames in flight; session restarts only after a media-services reset, on one serial queue; one outline model for both sides; footage score counts "no road seen" like Clear (not verified on device)
 - [ ] Still on `feature-fixing`, not merged: people and bike warnings, partly-covered lens check (fires at night), face/compass/crossing aim checks, heartbeat tick
 
 ## Phase 4: test and tune (hours 26 to 32)

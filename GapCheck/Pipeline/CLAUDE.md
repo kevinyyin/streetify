@@ -16,14 +16,14 @@ Time to arrival = box height / change in height per second. Height, because hand
 
 **Decide**, first rule that fires wins (rules 2, 3 and 6 changed 2026-10-09; the owner chose them from the `feature-fixing` branch):
 1. No frame within `Config.staleFrameTimeout` (start 300 ms): Unknown `stale`. Runs on a timer.
-2. Phone not level (live only): Unknown `notLevel`, unless a car was Approaching within `Config.tiltCarMemorySeconds` (then Approaching, unmeasured).
+2. Phone not level (live only): Unknown `notLevel`, unless a car was Approaching within `Config.tiltCarMemorySeconds` (then the last Approaching state is kept, so the tilt is no news and nothing is spoken over the tone; changed 2026-10-09 from "Approaching, unmeasured", which spoke "car" while tilted).
 3. Flat (low Laplacian variance) and not overexposed: `covered`; else too dark or too bright: Unknown with that reason.
 4. Any track arriving within `Config.approachWindowSeconds` (start 20 s), or too new to measure: Approaching, with the smallest time or "far".
 5. Stationary vehicle covering over `Config.blockedFraction` of the center tile: Unknown `viewBlocked`.
 6. No moving vehicle (growing or shrinking over `Config.directionWindowSeconds`) seen in `Config.roadEvidenceSeconds`: Unknown `noRoadSeen`. Clear means "road seen and empty", not "nothing detected".
 7. Clear once rules 1 to 6 haven't fired for `Config.clearHoldSeconds` (start 1.5 s). Until then, keep the previous state.
 
-AppModel adds camera faults outside Decide: `noPermission`, `unsupported`, `interrupted`, `overheated` (session notifications, system pressure). A silent side reads its fault, else `stale`. When the watchdog fires it tells the Decider, which re-arms the clear hold on frame time.
+AppModel adds camera faults outside Decide: `noPermission`, `unsupported`, `interrupted`, `overheated` (session notifications, system pressure). A silent side reads its fault, else `stale`. A fault clears only when a frame taken after it arrives (frames in flight when it was set don't count; not verified on device). The session restarts only after a media-services reset; other runtime errors leave it stopped. When the watchdog fires it tells the Decider, which re-arms the clear hold on frame time. The watchdog is off while the app is paused.
 
 ## Decisions (approved 2026-10-08)
 

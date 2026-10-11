@@ -76,11 +76,14 @@ final class DecideTests: XCTestCase {
         XCTAssertEqual(d.update(obs(3.5), tracks: []), .clear)
     }
 
-    /// Tilting right after a car was seen still reports the car (no time), then the tilt.
+    /// Tilting right after a car was seen still reports the car, unchanged so nothing is spoken over the tone, then
+    /// the tilt.
     func testTiltKeepsACarJustSeen() {
         let d = Decider()
-        guard case .approaching = d.update(obs(1.5), tracks: [approachingTrack]) else { return XCTFail("expected approach") }
-        XCTAssertEqual(d.update(obs(1.6, level: false), tracks: []), .approaching(.unmeasured))
+        let seen = d.update(obs(1.5), tracks: [approachingTrack])
+        guard case .approaching = seen else { return XCTFail("expected approach") }
+        XCTAssertEqual(d.update(obs(1.6, level: false), tracks: []), seen)
+        XCTAssertNil(announce(previous: [.right: seen], current: [.right: d.state]))
         XCTAssertEqual(d.update(obs(2.6, level: false), tracks: []), .unknown(.notLevel))
     }
 
