@@ -219,6 +219,15 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue(toneSettings(isLevel: false, tiltErrorDegrees: 12, isSpeaking: false).isOn)
     }
 
+    /// The heading tone follows the worst misaimed side's own compass error, and only beyond the tolerance: crossing
+    /// traffic alone (compass on the road) gives no tone the user can't aim away (review I3).
+    func testHeadingToneOnlyFromMisaimedSidesBeyondTolerance() {
+        XCTAssertNil(misaimHeadingError([.left: .unknown(.misaimed)], headingErrors: [.left: 5]))
+        XCTAssertEqual(misaimHeadingError([.left: .unknown(.misaimed), .right: .unknown(.misaimed)],
+                                          headingErrors: [.left: 30, .right: 40]), 40)
+        XCTAssertNil(misaimHeadingError([.left: .clear], headingErrors: [.left: 50]))
+    }
+
     /// The tone also guides the phone back to the street heading.
     func testToneGuidesHeading() {
         let off = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 40)
