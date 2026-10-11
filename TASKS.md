@@ -62,7 +62,7 @@ Spec: docs/superpowers/specs/2026-10-10-field-test-fixes-design.md; plan: docs/s
 - [x] Cars driving away no longer count as approaching
 - [x] A tilted phone still reports cars; the tone yields to them (not verified on device)
 - [x] "Turn the phone around" from approaching cars drifting the wrong way (not verified on device: the front feed should read text backwards)
-- [ ] Sideways hold: cameras toward the street, fingers off the lenses
+- [x] Sideways hold: cameras toward the street, fingers off the lenses (not verified on device; landscape layout not seen in the simulator)
 - [ ] Front/rear model (CFV ConvNeXt), stage 1: debug screen only
 - [ ] Best installed voice; one-time tip when only the basic voice is installed
 

@@ -63,5 +63,6 @@ enum Strings {
     /// Said when the app goes to the background and stops watching.
     static let paused = "Streetify paused"
     /// Said on first launch, and on a long press.
-    static let holdInstructions = "Hold the phone upright, edge toward the street, screen facing left"
+    static let holdInstructions =
+        "Hold the phone sideways by the end without the cameras. Point the cameras at the street, camera bump facing right."
 }
