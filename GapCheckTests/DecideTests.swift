@@ -229,6 +229,14 @@ final class DecideTests: XCTestCase {
     func testReplayFramesAreStill() {
         XCTAssertTrue(makeFrame(makeLumaBuffer(width: 8, height: 8) { _, _ in 128 }).isStill)
     }
+
+    /// Growing over the last 1.5 s (noise) but shrinking for sure over the 4 s window: a car that already passed.
+    func testCarDrivingAwayIsIgnored() {
+        var leaving = trackWithDirection(heightAt: { 0.2 * (1 - 0.1 * $0) })
+        leaving.heights = approachingHeights(tauAtEndSeconds: 8.5, heightAtEnd: 0.12)
+        XCTAssertEqual(leaving.travel, .away)
+        if case .approaching = seen().update(obs(4), tracks: [leaving]) { XCTFail("a leaving car is not coming") }
+    }
 }
 
 /// The live watchdog runs on main from host arrival times, so a hung pipeline or an ended replay still goes stale.
