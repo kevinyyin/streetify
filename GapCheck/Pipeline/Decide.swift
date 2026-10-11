@@ -14,6 +14,8 @@ enum UnknownReason: Equatable {
     case facingUser
     /// The phone turned off the street heading (compass), or cars cross the picture instead of coming along it.
     case misaimed
+    /// Curb only: the phone is moving (the user walks), so box growth says nothing about cars.
+    case moving
 }
 
 /// How soon an approaching car arrives, as far as can be told.
@@ -43,6 +45,8 @@ struct FrameObservation {
     var faceBoxes: [CGRect] = []
     /// Compass heading of the camera axis; nil without a calibrated compass, and in replay.
     var headingDegrees: Double? = nil
+    /// Held still; replay frames are still.
+    var isStill = true
 }
 
 /// The ordered rules for one direction. Starts Unknown; every failure ends Unknown, never Clear.
@@ -94,10 +98,11 @@ final class Decider {
     /// Road evidence, the street heading and crossing traffic, before the rules read them.
     private func noteAim(_ o: FrameObservation, _ tracks: [Track]) {
         let t = o.timestampSeconds
-        if o.isLevel, tracks.contains(where: \.isCrossingView) {
+        let canJudgeAim = o.isLevel && o.isStill // turning or walking slides and grows boxes too
+        if canJudgeAim, tracks.contains(where: \.isCrossingView) {
             lastCrossingSeconds = t
             roadSeenSeconds = nil // it was looking across the road, not along it
-        } else if o.isLevel, tracks.contains(where: { $0.travel != .unclear }) {
+        } else if canJudgeAim, tracks.contains(where: { $0.travel != .unclear }) {
             // A vehicle growing or shrinking travels along the camera axis: this is the road, and this the heading.
             roadSeenSeconds = t
             if let heading = o.headingDegrees { lockedHeadingDegrees = heading }
@@ -115,14 +120,14 @@ final class Decider {
 
     private func firstFiringRule(_ o: FrameObservation, _ tracks: [Track]) -> DirectionState? {
         let t = o.timestampSeconds
+        if !o.isStill {
+            // Curb only (owner, 2026-10-10): walking makes every box grow as if a car were coming.
+            return carJustSeen(atSeconds: t) ?? .unknown(.moving)
+        }
         if !o.isLevel {
             // Tilting doesn't make a car that was just seen go away. It keeps the car as last reported, so the tilt
             // itself is no news: nothing is spoken over the tone.
-            if let seen = lastApproachSeconds, t - seen <= Config.tiltCarMemorySeconds {
-                if case .approaching = state { return state }
-                return .approaching(.unmeasured)
-            }
-            return .unknown(.notLevel)
+            return carJustSeen(atSeconds: t) ?? .unknown(.notLevel)
         }
         if let reason = qualityProblem(o.quality) { return .unknown(reason) }
 
@@ -153,6 +158,15 @@ final class Decider {
         // Clear means "road seen and empty", not "nothing detected" (a wall, a hedge, indoors).
         if roadSeenSeconds == nil { return .unknown(.noRoadSeen) }
         return nil
+    }
+}
+
+extension Decider {
+    /// While the phone can't judge cars, a car reported within `Config.carMemorySeconds` stays as last said.
+    fileprivate func carJustSeen(atSeconds t: Double) -> DirectionState? {
+        guard let seen = lastApproachSeconds, t - seen <= Config.carMemorySeconds else { return nil }
+        if case .approaching = state { return state }
+        return .approaching(.unmeasured)
     }
 }
 

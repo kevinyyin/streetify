@@ -14,6 +14,7 @@ The user can't see the screen; this folder is the product for them. One job per 
 
 ## Rules
 
+- **"Hold still"** (the phone is moving; curb only, 2026-10-10) is spoken once for the whole phone, with the problem vibration.
 - **Not level is never spoken and has no vibration**; the tone says it. The state after leveling out is always announced, even if it is the same as before the tilt.
 - **Never two voices:** with VoiceOver on, speech is a high-priority VoiceOver announcement; otherwise AVSpeechSynthesizer. Audio session `.playback` + `.mixWithOthers`.
 - **Tone and speech don't overlap:** the tone plays only while not level, and while not level nothing is spoken, with one exception: "camera stopped" is always spoken.

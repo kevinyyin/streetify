@@ -59,7 +59,7 @@ final class Pipeline {
                                            quality: imageQuality(frame.pixelBuffer), tile: frameTileRect(frame),
                                            blockerBoxes: found.filter { Config.blockerLabels.contains($0.label) }.map(\.box),
                                            faceBoxes: found.filter { $0.label == Config.faceLabel }.map(\.box),
-                                           headingDegrees: frame.headingDegrees)
+                                           headingDegrees: frame.headingDegrees, isStill: frame.isStill)
         let state = decider.update(observation, tracks: tracks)
         onUpdate?(PipelineUpdate(side: side, frame: frame, detections: detections, tracks: tracks, state: state,
                                  headingErrorDegrees: decider.headingErrorDegrees))

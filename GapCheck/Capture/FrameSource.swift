@@ -10,6 +10,10 @@ struct Frame {
     let tiltErrorDegrees: Double
     /// Compass heading of the camera axis; nil without a calibrated compass, and in replay.
     var headingDegrees: Double? = nil
+    /// Held still (curb only); replay frames are still.
+    var isStill = true
+    /// Hand-held motion RMS in g, for the calibration readout on screen.
+    var motionG = 0.0
 }
 
 protocol FrameSource: AnyObject {
