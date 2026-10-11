@@ -31,17 +31,16 @@ final class Pipeline {
 
     private let source: FrameSource
     private let detector: Detector
-    private let orientation: CarOrientationClassifier?
+    /// The front/rear model, only while someone can see the screen (stage 1 feeds nothing else). Only touched on `queue`.
+    private var orientation: CarOrientationClassifier?
     private static let log = Logger(subsystem: "GapCheck", category: "orientation")
     private let tracker = Tracker()
     private let decider: Decider
     private let queue: DispatchQueue
 
     /// `checksTurnAround`: live cameras only; replayed footage was filmed any way round.
-    init(side: Side, source: FrameSource, detector: Detector, orientation: CarOrientationClassifier? = nil,
-         checksTurnAround: Bool = false) {
+    init(side: Side, source: FrameSource, detector: Detector, checksTurnAround: Bool = false) {
         self.side = side
-        self.orientation = orientation
         decider = Decider(checksTurnAround: checksTurnAround)
         self.source = source
         self.detector = detector
@@ -53,6 +52,9 @@ final class Pipeline {
     /// Frame gaps go stale here, on frame timestamps; silence (no updates at all) goes stale in AppModel's watchdog.
     func start() { source.start() }
     func stop() { source.stop() }
+
+    /// Starts or stops the front/rear model (nil). Call from any queue.
+    func useOrientation(_ classifier: CarOrientationClassifier?) { queue.async { self.orientation = classifier } }
 
     /// The live watchdog found this side silent; the next Clear waits the full hold. Call from any queue.
     func noteStale() { queue.async { self.decider.noteExternalStale() } }

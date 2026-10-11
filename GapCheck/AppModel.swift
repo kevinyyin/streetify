@@ -170,11 +170,23 @@ final class AppModel {
         let on = showsPreview(voiceOverRunning: UIAccessibility.isVoiceOverRunning, arguments: ProcessInfo.processInfo.arguments)
         previewOn.withLock { $0 = on }
         isPreviewOn = on
+        pipelines.values.forEach(updateOrientation)
         if !on {
             for side in [Side.left, .right] {
                 panes[side]?.image = nil
                 panes[side]?.masks = []
             }
+        }
+    }
+
+    /// The front/rear model (stage 1) only feeds the debug screen, so it runs only while someone can see it, never in the
+    /// warning path for a VoiceOver user. Loaded off main: two 51 MB models would freeze the screen and VoiceOver.
+    private func updateOrientation(_ pipeline: Pipeline) {
+        guard previewOn.withLock({ $0 }) else { return pipeline.useOrientation(nil) }
+        DispatchQueue.global(qos: .utility).async {
+            let classifier = try? CarOrientationClassifier()
+            guard self.previewOn.withLock({ $0 }) else { return } // turned off while loading
+            pipeline.useOrientation(classifier)
         }
     }
 
@@ -247,14 +259,14 @@ final class AppModel {
     private func run(_ source: FrameSource, on side: Side, detectsFaces: Bool = false) {
         pipelines[side]?.stop()
         guard let detector = try? Detector(detectsFaces: detectsFaces) else { return } // no model: no pipeline, the side stays Unknown
-        let pipeline = Pipeline(side: side, source: source, detector: detector, orientation: try? CarOrientationClassifier(),
-                                checksTurnAround: source is LiveCameraSource)
+        let pipeline = Pipeline(side: side, source: source, detector: detector, checksTurnAround: source is LiveCameraSource)
         pipeline.onUpdate = { [weak self] update in
             guard let self else { return }
             if let frame = update.frame, self.previewOn.withLock({ $0 }) { self.renderPreview(frame, side: side) }
             self.show(update)
         }
         pipelines[side] = pipeline
+        updateOrientation(pipeline)
         pipeline.start()
     }
 
