@@ -212,9 +212,11 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
     }
 
-    /// While a car is reported the tone stops, so the car's sentence is heard.
-    func testToneYieldsToCars() {
-        XCTAssertFalse(toneSettings(isLevel: false, tiltErrorDegrees: 30, isCarComing: true).isOn)
+    /// The tone pauses only while a sentence plays, so it is heard; a car on one side must not hide the other side's tilt
+    /// (review C1: after "no cars", silence would read as "still no cars").
+    func testToneYieldsToSpeechOnly() {
+        XCTAssertFalse(toneSettings(isLevel: false, tiltErrorDegrees: 30, isSpeaking: true).isOn)
+        XCTAssertTrue(toneSettings(isLevel: false, tiltErrorDegrees: 12, isSpeaking: false).isOn)
     }
 
     /// The tone also guides the phone back to the street heading.
@@ -248,6 +250,17 @@ final class BannedWordsTests: XCTestCase {
 /// One sentence at a time: a car is never cut off, more urgent news cuts in, the rest waits (newest per side) and is
 /// said as it is when its turn comes.
 final class SpeechQueueTests: XCTestCase {
+    /// The tone waits for exactly this: a sentence started and not yet finished.
+    func testIsSpeakingUntilFinished() {
+        var q = SpeechQueue()
+        let u = utterance(.left, .approaching(.seconds(7)))
+        XCTAssertFalse(q.isSpeaking)
+        _ = q.add([u], atSeconds: 0)
+        XCTAssertTrue(q.isSpeaking)
+        _ = q.finished(text: u.text, atSeconds: 1)
+        XCTAssertFalse(q.isSpeaking)
+    }
+
     private let carRight = utterance(.right, .approaching(.seconds(6)))
     private let blockedLeft = utterance(.left, .unknown(.viewBlocked))
 

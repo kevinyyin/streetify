@@ -108,13 +108,13 @@ struct ToneSettings: Equatable {
 }
 
 /// The tone means only "the phone isn't pointed right": on while tilted, or while the compass says it turned off the
-/// street (`headingErrorDegrees`, passed only then), pitch rising toward aimed; silent when aimed. Silent while a car is
-/// reported, so the car's sentence is heard.
+/// street (`headingErrorDegrees`, passed only then), pitch rising toward aimed; silent when aimed. Paused while a sentence
+/// plays, so it is heard; never paused for car state, since a car on one side must not hide the other side's tilt.
 func toneSettings(isLevel: Bool, tiltErrorDegrees: Double, headingErrorDegrees: Double? = nil,
-                  isCarComing: Bool = false) -> ToneSettings {
+                  isSpeaking: Bool = false) -> ToneSettings {
     var errors: [Double] = isLevel ? [] : [tiltErrorDegrees]
     if let headingErrorDegrees { errors.append(headingErrorDegrees) }
-    guard !isCarComing, let error = errors.max() else { return ToneSettings(isOn: false, frequencyHz: 0) }
+    guard !isSpeaking, let error = errors.max() else { return ToneSettings(isOn: false, frequencyHz: 0) }
     let closeness = 1 - min(error, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
     return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness)
 }
