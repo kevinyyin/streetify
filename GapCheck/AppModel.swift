@@ -57,8 +57,8 @@ final class AppModel {
     @ObservationIgnored private var isAnnouncementScheduled = false
     /// False until a frame has reported the tilt; before that (or with no camera, as in the simulator) the tone is silent.
     @ObservationIgnored private var hasLevelReading = false
-    /// The compass's distance from the street heading, for the tone while a side is misaimed.
-    @ObservationIgnored private var headingErrorDegrees: Double?
+    /// Each side's compass distance from its street heading, for the tone while a side is misaimed.
+    @ObservationIgnored private var headingErrors: [Side: Double] = [:]
     @ObservationIgnored private var lastUpdateSeconds: [Side: Double] = [:]
     @ObservationIgnored private var watchdog: Timer?
     @ObservationIgnored private var grace: DispatchWorkItem?
@@ -305,7 +305,7 @@ final class AppModel {
                 self.isLevel = frame.isLevel
                 self.hasLevelReading = true
                 self.tiltErrorDegrees = frame.tiltErrorDegrees
-                self.headingErrorDegrees = update.headingErrorDegrees
+                self.headingErrors[update.side] = update.headingErrorDegrees
                 self.motionG = frame.motionG
             }
             self.updateTone()
@@ -331,9 +331,9 @@ final class AppModel {
 
     private func updateTone() {
         guard hasLevelReading, !isPaused else { return tone.apply(ToneSettings(isOn: false, frequencyHz: 0)) }
-        let isMisaimed = panes.values.contains { $0.state == .unknown(.misaimed) }
         tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees,
-                                headingErrorDegrees: isMisaimed ? headingErrorDegrees : nil, isSpeaking: speech.isSpeaking))
+                                headingErrorDegrees: misaimHeadingError(panes.mapValues(\.state), headingErrors: headingErrors),
+                                isSpeaking: speech.isSpeaking))
     }
 
     /// After the grace period, a side still stale was never announced (it started that way, or came back from a

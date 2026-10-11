@@ -107,6 +107,14 @@ struct ToneSettings: Equatable {
     let frequencyHz: Double
 }
 
+/// The compass error the tone guides back from: the largest among the sides that read misaimed (each side keeps its own
+/// street-heading lock), and only beyond the tolerance, so crossing traffic alone gives no tone the user can't aim away.
+func misaimHeadingError(_ states: [Side: DirectionState], headingErrors: [Side: Double]) -> Double? {
+    states.compactMap { side, state in state == .unknown(.misaimed) ? headingErrors[side] : nil }
+        .filter { $0 > Config.headingToleranceDegrees }
+        .max()
+}
+
 /// The tone means only "the phone isn't pointed right": on while tilted, or while the compass says it turned off the
 /// street (`headingErrorDegrees`, passed only then), pitch rising toward aimed; silent when aimed. Paused while a sentence
 /// plays, so it is heard; never paused for car state, since a car on one side must not hide the other side's tilt.

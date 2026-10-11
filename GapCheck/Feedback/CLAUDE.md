@@ -6,7 +6,7 @@ The user can't see the screen; this folder is the product for them. One job per 
 
 | Signal | Its only job | When |
 |---|---|---|
-| **Tone** | "The phone isn't pointed right" | While not level, or while a side is misaimed and the compass is off the street heading; pitch rises toward aimed (200–500 Hz). Silent otherwise. Never used for cars. |
+| **Tone** | "The phone isn't pointed right" | While not level, or while a side is misaimed and its own compass error is beyond the tolerance (the worst such side guides); pitch rises toward aimed (200–500 Hz). Silent otherwise. Never used for cars. |
 | **Ready tap** (one crisp tap) | "Level, ready" | Once, when the phone becomes level |
 | **Speech** | What each direction is | One short sentence per side that changed, side first: "Right: car, 6 seconds", "Left: blocked", "Left: no cars" |
 | **Vibration with speech** | The whole situation | 3 sharp taps = a car is coming · 2 medium taps = a problem · 1 soft hum = no cars on either side |
