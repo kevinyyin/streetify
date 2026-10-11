@@ -12,11 +12,14 @@ enum SpeechPriority: Int, Comparable {
     static func < (a: SpeechPriority, b: SpeechPriority) -> Bool { a.rawValue < b.rawValue }
 }
 
-/// One sentence about one side (nil = both sides, e.g. the status the user asked for).
+/// One sentence about one side (nil = no one side: the status the user asked for, the hold instructions).
 struct Utterance: Equatable {
     let side: Side?
     let text: String
     let priority: SpeechPriority
+    /// Supersedes everything waiting or playing (the status restates both sides; "paused" ends them), so none of it
+    /// is said after. Other sentences leave the queue alone.
+    var replacesQueue = false
 }
 
 /// How urgent a state is; also picks the banner color on screen (red, amber, gray).
@@ -83,16 +86,13 @@ func announce(previous: [Side: DirectionState], current: [Side: DirectionState])
         guard let now = current[side], now != .unknown(.notLevel), isChange(from: previous[side], to: now) else { return nil }
         return utterance(side, now)
     }
-    // Phone-wide news ("Phone too hot") is the same sentence for both sides: say it once.
-    var seen = Set<String>()
-    let unique = changed.filter { seen.insert($0.text).inserted }
-    guard !unique.isEmpty else { return nil }
+    guard !changed.isEmpty else { return nil }
     let states = current.values
     // The "no cars" hum only when no side has a car or a problem.
     let haptic: HapticKind = states.contains(where: { if case .approaching = $0 { true } else { false } }) ? .approaching
         : states.contains(where: { if case .unknown = $0 { $0 != .unknown(.notLevel) } else { false } }) ? .unknown
         : .clear
-    let ordered = [SpeechPriority.closeCar, .car, .problem, .noCars].flatMap { p in unique.filter { $0.priority == p } }
+    let ordered = [SpeechPriority.closeCar, .car, .problem, .noCars].flatMap { p in changed.filter { $0.priority == p } }
     return FeedbackEvent(haptic: haptic, utterances: ordered)
 }
 
@@ -107,9 +107,22 @@ struct ToneSettings: Equatable {
     let frequencyHz: Double
 }
 
-/// The tone means only "the phone isn't level": on while tilted, pitch rising toward level; silent when level.
-func toneSettings(isLevel: Bool, tiltErrorDegrees: Double) -> ToneSettings {
-    guard !isLevel else { return ToneSettings(isOn: false, frequencyHz: 0) }
-    let closeness = 1 - min(tiltErrorDegrees, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
+/// The compass error the tone guides back from: the largest among the sides that read misaimed (each side keeps its own
+/// street-heading lock), and only beyond the tolerance, so crossing traffic alone gives no tone the user can't aim away.
+func misaimHeadingError(_ states: [Side: DirectionState], headingErrors: [Side: Double]) -> Double? {
+    states.compactMap { side, state in state == .unknown(.misaimed) ? headingErrors[side] : nil }
+        .filter { $0 > Config.headingToleranceDegrees }
+        .max()
+}
+
+/// The tone means only "the phone isn't pointed right": on while tilted, or while the compass says it turned off the
+/// street (`headingErrorDegrees`, passed only then), pitch rising toward aimed; silent when aimed. Paused while a sentence
+/// plays, so it is heard; never paused for car state, since a car on one side must not hide the other side's tilt.
+func toneSettings(isLevel: Bool, tiltErrorDegrees: Double, headingErrorDegrees: Double? = nil,
+                  isSpeaking: Bool = false) -> ToneSettings {
+    var errors: [Double] = isLevel ? [] : [tiltErrorDegrees]
+    if let headingErrorDegrees { errors.append(headingErrorDegrees) }
+    guard !isSpeaking, let error = errors.max() else { return ToneSettings(isOn: false, frequencyHz: 0) }
+    let closeness = 1 - min(error, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
     return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness)
 }

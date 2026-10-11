@@ -19,6 +19,10 @@ enum Strings {
         case .unknown(.interrupted): return "\(name): camera in use"
         case .unknown(.overheated): return "Phone too hot"
         case .unknown(.noRoadSeen): return "\(name): no road seen"
+        case .unknown(.facingUser): return "Turn the screen away from you"
+        case .unknown(.misaimed): return "Turn the phone back toward the road"
+        case .unknown(.moving): return "Hold still"
+        case .unknown(.turnedAround): return "Turn the phone around"
         }
     }
 
@@ -40,6 +44,10 @@ enum Strings {
         case .unknown(.interrupted): return "Camera in use"
         case .unknown(.overheated): return "Too hot"
         case .unknown(.noRoadSeen): return "No road seen"
+        case .unknown(.facingUser): return "Screen faces you"
+        case .unknown(.misaimed): return "Turn to road"
+        case .unknown(.moving): return "Hold still"
+        case .unknown(.turnedAround): return "Phone backwards"
         }
     }
 
@@ -54,6 +62,9 @@ enum Strings {
 
     /// Said when the app goes to the background and stops watching.
     static let paused = "Streetify paused"
+    /// Added to the first launch's hold instructions when only the basic voice is installed.
+    static let voiceTip = "For a clearer voice, download an Enhanced voice in Settings, Accessibility, Spoken Content."
     /// Said on first launch, and on a long press.
-    static let holdInstructions = "Hold the phone upright, edge toward the street, screen facing left"
+    static let holdInstructions =
+        "Hold the phone sideways by the end without the cameras. Point the cameras at the street, camera bump facing right."
 }

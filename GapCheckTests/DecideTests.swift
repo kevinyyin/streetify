@@ -5,9 +5,11 @@ import XCTest
 final class DecideTests: XCTestCase {
     private let tile = tileRect(orientedWidthPixels: 1080, orientedHeightPixels: 1920)
 
-    private func obs(_ t: Double, level: Bool = true, luma: Double = 0.5, variance: Double = 100) -> FrameObservation {
+    private func obs(_ t: Double, level: Bool = true, luma: Double = 0.5, variance: Double = 100,
+                     faces: [CGRect] = [], heading: Double? = nil, still: Bool = true) -> FrameObservation {
         FrameObservation(timestampSeconds: t, isLevel: level,
-                    quality: ImageQuality(meanLuma: luma, laplacianVariance: variance), tile: tile)
+                         quality: ImageQuality(meanLuma: luma, laplacianVariance: variance), tile: tile, faceBoxes: faces,
+                         headingDegrees: heading, isStill: still)
     }
 
     /// A Decider that has already seen a moving car, so an empty road can read "no cars".
@@ -76,16 +78,13 @@ final class DecideTests: XCTestCase {
         XCTAssertEqual(d.update(obs(3.5), tracks: []), .clear)
     }
 
-    /// Tilting right after a car was seen still reports the car (no time), then the tilt.
-    func testTiltKeepsACarJustSeen() {
-        let d = Decider()
-        guard case .approaching = d.update(obs(1.5), tracks: [approachingTrack]) else { return XCTFail("expected approach") }
-        XCTAssertEqual(d.update(obs(1.6, level: false), tracks: []), .approaching(.unmeasured))
-        XCTAssertEqual(d.update(obs(2.6, level: false), tracks: []), .unknown(.notLevel))
-    }
-
-    func testNotLevelBeatsApproaching() {
-        XCTAssertEqual(Decider().update(obs(1.5, level: false), tracks: [approachingTrack]), .unknown(.notLevel))
+    /// Tilting right after a car was seen still reports the car, unchanged so nothing is spoken over the tone, then
+    /// the tilt.
+    /// Tilt loses the horizon, so it stops "no cars"; a car still in view is still reported.
+    func testCarBeatsNotLevel() {
+        guard case .approaching(.seconds) = Decider().update(obs(1.5, level: false), tracks: [approachingTrack]) else {
+            return XCTFail("a car is reported while tilted")
+        }
     }
 
     func testTooDark() {
@@ -165,6 +164,148 @@ final class DecideTests: XCTestCase {
     func testNearParkedCarAllowsClear() {
         let parked = parkedTrack(CGRect(x: 0, y: 0.4, width: 0.2, height: 0.15))
         XCTAssertEqual(feed(seen(), from: 1.5, through: 3.0, tracks: [parked]), .clear)
+    }
+
+    /// The front camera seeing the user's face: the phone is held like a phone, not edge-on.
+    func testFaceFillingTheFrontCameraIsFacingUser() {
+        let d = seen()
+        XCTAssertEqual(d.update(obs(1.5, faces: [CGRect(x: 0.3, y: 0.3, width: 0.4, height: 0.3)]), tracks: []),
+                       .unknown(.facingUser))
+        XCTAssertNil(d.roadSeenSeconds)
+    }
+
+    /// The phone turned off the heading it had when a car last came along the road.
+    func testHeadingDriftIsMisaimed() {
+        let d = Decider()
+        _ = d.update(obs(0, heading: 90), tracks: [movingTrack])
+        XCTAssertNotEqual(d.update(obs(0.1, heading: 100), tracks: []), .unknown(.misaimed))
+        XCTAssertEqual(d.headingErrorDegrees ?? -1, 10, accuracy: 1e-9)
+        XCTAssertEqual(d.update(obs(0.2, heading: 140), tracks: []), .unknown(.misaimed))
+    }
+
+    /// Cars sliding across the picture without growing: the camera looks across the road.
+    func testCrossingTrafficIsMisaimed() {
+        var crossing = makeTrack(parkedHeights(height: 0.1, noisePixels: 0, seed: 1))
+        crossing.directionBoxes = (0...10).map { i in
+            let t = Double(i) / 10
+            return (t, CGRect(x: 0.1 + 0.4 * t, y: 0.45, width: 0.2, height: 0.1))
+        }
+        let d = seen()
+        XCTAssertEqual(d.update(obs(1.5), tracks: [crossing]), .unknown(.misaimed))
+        XCTAssertNil(d.roadSeenSeconds)
+    }
+
+    /// No calibrated compass (or none at all) gives no heading; that alone never reads as misaimed.
+    func testNoHeadingNeverMisaimedByCompass() {
+        let d = Decider()
+        _ = d.update(obs(0, heading: 90), tracks: [movingTrack])
+        XCTAssertNotEqual(d.update(obs(0.1, heading: nil), tracks: []), .unknown(.misaimed))
+        XCTAssertNil(d.headingErrorDegrees)
+    }
+
+    /// Curb only: while the phone moves, box growth says nothing about cars.
+    func testMovingIsUnknown() {
+        XCTAssertEqual(seen().update(obs(0, still: false), tracks: []), .unknown(.moving))
+    }
+
+    func testMovingKeepsACarJustSeen() {
+        let d = Decider()
+        let car = d.update(obs(1.5), tracks: [approachingTrack])
+        XCTAssertEqual(d.update(obs(1.6, still: false), tracks: []), car)
+        XCTAssertEqual(d.update(obs(2.6, still: false), tracks: []), .unknown(.moving))
+    }
+
+    func testMovingBeatsNotLevel() {
+        XCTAssertEqual(Decider().update(obs(0, level: false, still: false), tracks: []), .unknown(.moving))
+    }
+
+    /// Replayed footage never says "Hold still".
+    func testReplayFramesAreStill() {
+        XCTAssertTrue(makeFrame(makeLumaBuffer(width: 8, height: 8) { _, _ in 128 }).isStill)
+    }
+
+    /// Growing over the last 1.5 s (noise) but shrinking for sure over the 4 s window: a car that already passed.
+    func testCarDrivingAwayIsIgnored() {
+        var leaving = trackWithDirection(heightAt: { 0.2 * (1 - 0.1 * $0) })
+        leaving.heights = approachingHeights(tauAtEndSeconds: 8.5, heightAtEnd: 0.12)
+        XCTAssertEqual(leaving.travel, .away)
+        if case .approaching = seen().update(obs(4), tracks: [leaving]) { XCTFail("a leaving car is not coming") }
+    }
+
+    /// Coming along the road (growing), its center drifting `drift` of the picture width over the 4 s window.
+    private func comingCar(id: Int, drift: Double) -> Track {
+        trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }, xAt: { 0.5 + drift * $0 / 4 }, id: id)
+    }
+
+    /// Approaching cars drift toward the street's side, the left half of both pictures; two drifting right in a row
+    /// mean the phone is held the other way round.
+    func testTwoCarsDriftingTheWrongWayIsTurnedAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(4), tracks: [comingCar(id: 1, drift: 0.1)])
+        XCTAssertEqual(feed(d, from: 4.1, through: 6, tracks: [comingCar(id: 2, drift: 0.1)]), .unknown(.turnedAround))
+    }
+
+    func testOneRightCarClearsTurnedAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(4), tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)])
+        _ = d.update(obs(4.1), tracks: [comingCar(id: 3, drift: -0.1)])
+        XCTAssertNotEqual(feed(d, from: 4.2, through: 6), .unknown(.turnedAround))
+    }
+
+    /// Replayed footage was filmed any way round, so it never says "Turn the phone around".
+    func testReplayNeverTurnedAround() {
+        let d = seen()
+        XCTAssertNotEqual(feed(d, from: 4, through: 6, tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)]),
+                          .unknown(.turnedAround))
+    }
+
+    /// The road is a line, not a direction: obeying "Turn the phone around" turns the camera axis 180° and must not
+    /// read as misaimed (review I2), or the two instructions would send the user back and forth.
+    func testTurningThePhoneAroundIsNotMisaimed() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(4, heading: 270), tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)])
+        XCTAssertNotEqual(d.update(obs(4.1, heading: 90), tracks: []), .unknown(.misaimed))
+        XCTAssertEqual(d.headingErrorDegrees ?? -1, 0, accuracy: 1e-9)
+    }
+
+    /// The drift and travel windows reach 4 s back; for that long after a walk or a tilt they still hold those frames
+    /// (review I1).
+    func testFramesFromAWalkStillInTheWindowDontCountForTurnAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(3, still: false), tracks: [])
+        _ = d.update(obs(5), tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)])
+        XCTAssertNotEqual(feed(d, from: 5.1, through: 6), .unknown(.turnedAround))
+    }
+
+    /// Cyclists also ride along the sidewalk, which is on the other side of the picture: they say nothing about where the
+    /// street is (review I1).
+    func testBicyclesDontCountForTurnAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        var bikes = [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)]
+        for i in bikes.indices { bikes[i].label = "bicycle" }
+        _ = d.update(obs(4), tracks: bikes)
+        XCTAssertNotEqual(feed(d, from: 4.1, through: 6), .unknown(.turnedAround))
+    }
+
+    /// A parked car sliding sideways (the hand turning) is no evidence of which way the street lies.
+    func testDriftOfANonApproachingCarDoesNotCount() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        let parked = { (id: Int) in trackWithDirection(heightAt: { _ in 0.1 }, xAt: { 0.5 + 0.1 * $0 / 4 }, id: id) }
+        XCTAssertNotEqual(feed(d, from: 4, through: 6, tracks: [parked(1), parked(2)]), .unknown(.turnedAround))
+    }
+
+    /// Seen from behind silences a car only once the owner turns it on (after the curb field test).
+    func testRearCarCountsUntilEnabled() {
+        var t = makeTrack(approachingHeights(tauAtEndSeconds: 8.5, heightAtEnd: 0.02))
+        t.rearFrames = 3
+        XCTAssertTrue(countsAsComing(t, suppressesRear: false))
+        XCTAssertFalse(countsAsComing(t, suppressesRear: true))
     }
 }
 

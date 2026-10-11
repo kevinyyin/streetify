@@ -23,6 +23,8 @@ final class AppModel {
     var panes: [Side: Pane] = [.left: Pane(), .right: Pane()]
     private(set) var isLevel = false
     private(set) var tiltErrorDegrees = 90.0
+    /// Hand-held motion RMS in g: the calibration readout for `Config.movingAccelerationG`.
+    private(set) var motionG = 0.0
     /// True while the output volume is 0, so speech can't be heard.
     private(set) var isMuted = false
     /// False while VoiceOver is on (nobody sees the screen) unless launched with `-showOverlay`.
@@ -32,8 +34,11 @@ final class AppModel {
     private static let heardHoldKey = "heardHoldInstructions"
 
     @ObservationIgnored private let session = AVCaptureMultiCamSession()
+    /// Serial, so session starts never overlap.
+    @ObservationIgnored private let sessionQueue = DispatchQueue(label: "session", qos: .userInitiated)
     @ObservationIgnored private let motion = CMMotionManager()
     @ObservationIgnored private let level = LevelGate()
+    @ObservationIgnored private let still = StillGate()
     @ObservationIgnored private var pipelines: [Side: Pipeline] = [:]
     @ObservationIgnored private let ciContext = CIContext()
     @ObservationIgnored private let previewQueue = DispatchQueue(label: "preview", qos: .utility)
@@ -41,8 +46,9 @@ final class AppModel {
     @ObservationIgnored private let previewBusy = OSAllocatedUnfairLock(initialState: Set<Side>())
     /// `isPreviewOn` for the pipeline queues.
     @ObservationIgnored private let previewOn = OSAllocatedUnfairLock(initialState: true)
-    /// Outline models, made on first use per side (nil = failed). Only touched on `previewQueue`.
-    @ObservationIgnored private var segmenters: [Side: Segmenter?] = [:]
+    /// The outline model, one for both sides so only one outline runs at a time next to the detectors. Loaded the
+    /// first time someone can see the screen, off the main thread (nil = failed). Only touched on `previewQueue`.
+    @ObservationIgnored private lazy var segmenter = try? Segmenter()
 
     @ObservationIgnored private let haptics = Haptics()
     @ObservationIgnored private let tone = Tone()
@@ -51,10 +57,14 @@ final class AppModel {
     @ObservationIgnored private var isAnnouncementScheduled = false
     /// False until a frame has reported the tilt; before that (or with no camera, as in the simulator) the tone is silent.
     @ObservationIgnored private var hasLevelReading = false
+    /// Each side's compass distance from its street heading, for the tone while a side is misaimed.
+    @ObservationIgnored private var headingErrors: [Side: Double] = [:]
     @ObservationIgnored private var lastUpdateSeconds: [Side: Double] = [:]
     @ObservationIgnored private var watchdog: Timer?
-    /// Faults the user can act on (permission, heat, camera in use); a silent side reads its fault instead of stale.
-    @ObservationIgnored private var cameraFaults: [Side: UnknownReason] = [:]
+    @ObservationIgnored private var grace: DispatchWorkItem?
+    /// Faults the user can act on (permission, heat, camera in use) and when they were set (host seconds); a silent
+    /// side reads its fault instead of stale.
+    @ObservationIgnored private var cameraFaults: [Side: (reason: UnknownReason, sinceSeconds: Double)] = [:]
     @ObservationIgnored private var isPaused = false
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var keyValueObservations: [NSKeyValueObservation] = []
@@ -71,10 +81,15 @@ final class AppModel {
         announceAfterGrace()
         if !UserDefaults.standard.bool(forKey: Self.heardHoldKey) {
             UserDefaults.standard.set(true, forKey: Self.heardHoldKey)
-            speakHoldInstructions()
+            speakHoldInstructions(addingVoiceTip: speech.hasOnlyBasicVoice)
         }
         motion.deviceMotionUpdateInterval = 1.0 / 30
-        motion.startDeviceMotionUpdates()
+        // The magnetic frame adds the compass for the heading check; without a magnetometer, level still works.
+        if CMMotionManager.availableAttitudeReferenceFrames().contains(.xMagneticNorthZVertical) {
+            motion.startDeviceMotionUpdates(using: .xMagneticNorthZVertical)
+        } else {
+            motion.startDeviceMotionUpdates()
+        }
         observeCaptureSession()
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
@@ -86,22 +101,25 @@ final class AppModel {
 
     /// Says the current status of both directions again (the screen's tap / VoiceOver action).
     func speakStatus() {
-        speech.say([Utterance(side: nil, text: Strings.status(panes.mapValues(\.state)), priority: .car)])
+        speech.say([Utterance(side: nil, text: Strings.status(panes.mapValues(\.state)), priority: .car, replacesQueue: true)])
     }
 
-    /// How to hold the phone (first launch, and the screen's long press / VoiceOver action).
-    func speakHoldInstructions() {
-        speech.say([Utterance(side: nil, text: Strings.holdInstructions, priority: .car)])
+    /// How to hold the phone (first launch, and the screen's long press / VoiceOver action). Unlike the status it doesn't
+    /// restate the sides, so news it cuts off or holds up is said after it.
+    func speakHoldInstructions(addingVoiceTip: Bool = false) {
+        let text = addingVoiceTip ? Strings.holdInstructions + " " + Strings.voiceTip : Strings.holdInstructions
+        speech.say([Utterance(side: nil, text: text, priority: .car)])
     }
 
     /// The app went to the background, where the cameras stop: say so while it still can, instead of leaving the last
-    /// "no cars" standing. Not verified on device.
+    /// "no cars" standing. Until it comes back nothing else is said and the tone is off. Not verified on device.
     func pause() {
         guard !isPaused else { return }
         isPaused = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "say paused")
         haptics.play(.unknown)
-        speech.say([Utterance(side: nil, text: Strings.paused, priority: .car)])
+        updateTone()
+        speech.say([Utterance(side: nil, text: Strings.paused, priority: .car, replacesQueue: true)])
         DispatchQueue.main.asyncAfter(deadline: .now() + Config.maxUtteranceSeconds) {
             UIApplication.shared.endBackgroundTask(task)
         }
@@ -113,7 +131,7 @@ final class AppModel {
         guard isPaused else { return }
         isPaused = false
         for side in [Side.left, .right] {
-            panes[side]?.state = silentSideState(fault: cameraFaults[side])
+            panes[side]?.state = silentSideState(fault: cameraFaults[side]?.reason)
             pipelines[side]?.noteStale()
         }
         lastAnnounced = [.left: .unknown(.stale), .right: .unknown(.stale)]
@@ -123,6 +141,7 @@ final class AppModel {
     }
 
     func replay(_ url: URL, on side: Side) {
+        cameraFaults[side] = nil // replay frames carry file time, not host time, so they can't clear it themselves
         run(VideoFileSource(url: url, realTime: true), on: side)
     }
 
@@ -151,11 +170,23 @@ final class AppModel {
         let on = showsPreview(voiceOverRunning: UIAccessibility.isVoiceOverRunning, arguments: ProcessInfo.processInfo.arguments)
         previewOn.withLock { $0 = on }
         isPreviewOn = on
+        pipelines.values.forEach(updateOrientation)
         if !on {
             for side in [Side.left, .right] {
                 panes[side]?.image = nil
                 panes[side]?.masks = []
             }
+        }
+    }
+
+    /// The front/rear model (stage 1) only feeds the debug screen, so it runs only while someone can see it, never in the
+    /// warning path for a VoiceOver user. Loaded off main: two 51 MB models would freeze the screen and VoiceOver.
+    private func updateOrientation(_ pipeline: Pipeline) {
+        guard previewOn.withLock({ $0 }) else { return pipeline.useOrientation(nil) }
+        DispatchQueue.global(qos: .utility).async {
+            let classifier = try? CarOrientationClassifier()
+            guard self.previewOn.withLock({ $0 }) else { return } // turned off while loading
+            pipeline.useOrientation(classifier)
         }
     }
 
@@ -166,16 +197,17 @@ final class AppModel {
         let cameras: [(position: AVCaptureDevice.Position, side: Side)] = [(.back, backSide), (.front, frontSide)]
         for (position, side) in cameras {
             do {
-                let camera = try LiveCameraSource(session: session, position: position, motion: motion, level: level)
+                let camera = try LiveCameraSource(session: session, position: position, motion: motion, level: level,
+                                                  still: still)
                 observePressure(camera.device)
-                run(camera, on: side)
+                run(camera, on: side, detectsFaces: position == .front)
             } catch {
                 // It never starts, so its side stays Unknown and is announced as stopped after the grace period.
                 Self.log.error("camera \(position == .front ? "front" : "back") failed: \(error.localizedDescription)")
             }
         }
         Self.log.info("multi-cam hardwareCost \(self.session.hardwareCost), systemPressureCost \(self.session.systemPressureCost)")
-        DispatchQueue.global(qos: .userInitiated).async { self.session.startRunning() }
+        sessionQueue.async { self.session.startRunning() }
     }
 
     /// Interruptions (camera in use, heat) and runtime errors of the shared session.
@@ -186,18 +218,17 @@ final class AppModel {
             let raw = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int
             let reason = raw.flatMap { AVCaptureSession.InterruptionReason(rawValue: $0) }
             guard reason != .videoDeviceNotAvailableInBackground else { return } // pause() covers it
+            // The fault stays until frames flow again (`show`), so the end of an interruption isn't "camera stopped".
             self?.setFault(interruptionFault(reason), on: [.left, .right])
-        })
-        observers.append(center.addObserver(forName: AVCaptureSession.interruptionEndedNotification, object: session,
-                                            queue: .main) { [weak self] _ in
-            self?.cameraFaults = [:] // frames flow again; until they do, the watchdog says stale
         })
         observers.append(center.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: session,
                                             queue: .main) { [weak self] note in
-            let error = note.userInfo?[AVCaptureSessionErrorKey] as? Error
+            let error = note.userInfo?[AVCaptureSessionErrorKey] as? AVError
             AppModel.log.error("capture runtime error: \(error?.localizedDescription ?? "unknown")")
-            // Media services reset and the like stop the session for good unless it is restarted.
-            DispatchQueue.global(qos: .userInitiated).async { self?.session.startRunning() }
+            // A media services reset stops the session until it is restarted. Other errors would just fail again, so
+            // the session stays stopped and the watchdog says so.
+            guard error?.code == .mediaServicesWereReset else { return }
+            self?.sessionQueue.async { self?.session.startRunning() }
         })
     }
 
@@ -218,23 +249,24 @@ final class AppModel {
     /// A camera fault the user can act on; the side reads it until frames flow again.
     private func setFault(_ reason: UnknownReason, on sides: [Side]) {
         for side in sides {
-            cameraFaults[side] = reason
+            cameraFaults[side] = (reason, CACurrentMediaTime())
             panes[side]?.state = .unknown(reason)
         }
         updateTone()
         scheduleAnnouncement()
     }
 
-    private func run(_ source: FrameSource, on side: Side) {
+    private func run(_ source: FrameSource, on side: Side, detectsFaces: Bool = false) {
         pipelines[side]?.stop()
-        guard let detector = try? Detector() else { return } // no model: no pipeline, the side stays Unknown
-        let pipeline = Pipeline(side: side, source: source, detector: detector)
+        guard let detector = try? Detector(detectsFaces: detectsFaces) else { return } // no model: no pipeline, the side stays Unknown
+        let pipeline = Pipeline(side: side, source: source, detector: detector, checksTurnAround: source is LiveCameraSource)
         pipeline.onUpdate = { [weak self] update in
             guard let self else { return }
             if let frame = update.frame, self.previewOn.withLock({ $0 }) { self.renderPreview(frame, side: side) }
             self.show(update)
         }
         pipelines[side] = pipeline
+        updateOrientation(pipeline)
         pipeline.start()
     }
 
@@ -243,7 +275,13 @@ final class AppModel {
     private func renderPreview(_ frame: Frame, side: Side) {
         guard previewBusy.withLock({ $0.insert(side).inserted }) else { return }
         previewQueue.async {
-            self.segmenter(for: side)?.submit(frame)
+            // ponytail: first come first served across sides; take turns if one side's outlines starve.
+            self.segmenter?.submit(frame) { masks in
+                DispatchQueue.main.async {
+                    guard self.isPreviewOn else { return }
+                    self.panes[side]?.masks = masks
+                }
+            }
             let ci = CIImage(cvPixelBuffer: frame.pixelBuffer).oriented(frame.orientation)
             let image = self.ciContext.createCGImage(ci, from: ci.extent)
             self.previewBusy.withLock { _ = $0.remove(side) }
@@ -254,28 +292,19 @@ final class AppModel {
         }
     }
 
-    /// The outline model for a side, loaded the first time someone can see the screen, off the main thread.
-    /// Call on `previewQueue` only.
-    private func segmenter(for side: Side) -> Segmenter? {
-        if let made = segmenters[side] { return made }
-        let segmenter = try? Segmenter()
-        segmenter?.onMasks = { [weak self] masks in
-            DispatchQueue.main.async {
-                guard let self, self.isPreviewOn else { return }
-                self.panes[side]?.masks = masks
-            }
-        }
-        segmenters[side] = segmenter
-        return segmenter
-    }
-
     /// Called on the pipeline's queue.
     private func show(_ update: PipelineUpdate) {
         DispatchQueue.main.async {
+            // A frame taken before a fault was set (in flight when it was) must not undo it. Live frame times are host
+            // time, like the fault's; not verified on device.
+            if let fault = self.cameraFaults[update.side] {
+                guard let t = update.frame?.timestampSeconds, t > fault.sinceSeconds else { return }
+                self.cameraFaults[update.side] = nil // frames are flowing again: the camera works
+            }
             var pane = self.panes[update.side] ?? Pane()
             if let t = update.frame?.timestampSeconds {
                 pane.timestampSeconds = t
-                pane.redTrackIds = redTrackIds(update.tracks, atSeconds: t, wasRed: pane.redTrackIds)
+                pane.redTrackIds = self.isPreviewOn ? redTrackIds(update.tracks, atSeconds: t, wasRed: pane.redTrackIds) : []
             }
             pane.detections = update.detections
             pane.tracks = update.tracks
@@ -284,22 +313,26 @@ final class AppModel {
             self.lastUpdateSeconds[update.side] = CACurrentMediaTime()
 
             if let frame = update.frame {
-                self.cameraFaults[update.side] = nil // frames are flowing: the camera works
                 if frame.isLevel && !self.isLevel { self.haptics.play(.ready) }
                 self.isLevel = frame.isLevel
                 self.hasLevelReading = true
                 self.tiltErrorDegrees = frame.tiltErrorDegrees
+                self.headingErrors[update.side] = update.headingErrorDegrees
+                self.motionG = frame.motionG
             }
             self.updateTone()
             self.scheduleAnnouncement()
         }
     }
 
-    /// Every 0.1 s on main: the stale watchdog and the speech safety net.
+    /// Every 0.1 s on main: the stale watchdog (not while paused: `resume` starts both sides over) and the speech
+    /// safety net.
     private func tick() {
         speech.poll()
+        updateTone() // the tone comes back once a sentence has finished
+        guard !isPaused else { return }
         for side in staleSides(lastUpdateSeconds: lastUpdateSeconds, nowSeconds: CACurrentMediaTime()) {
-            let silent = silentSideState(fault: cameraFaults[side])
+            let silent = silentSideState(fault: cameraFaults[side]?.reason)
             guard panes[side]?.state != silent else { continue }
             panes[side]?.state = silent
             pipelines[side]?.noteStale()
@@ -309,25 +342,33 @@ final class AppModel {
     }
 
     private func updateTone() {
-        guard hasLevelReading else { return tone.apply(ToneSettings(isOn: false, frequencyHz: 0)) }
-        tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees))
+        guard hasLevelReading, !isPaused else { return tone.apply(ToneSettings(isOn: false, frequencyHz: 0)) }
+        tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees,
+                                headingErrorDegrees: misaimHeadingError(panes.mapValues(\.state), headingErrors: headingErrors),
+                                isSpeaking: speech.isSpeaking))
     }
 
     /// After the grace period, a side still stale was never announced (it started that way, or came back from a
-    /// pause that way); forgetting it makes the next announcement say "camera stopped".
+    /// pause that way); forgetting it makes the next announcement say "camera stopped". A newer grace period (a quick
+    /// pause and resume) replaces the old one, which would otherwise end early.
     private func announceAfterGrace() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + Config.startupGraceSeconds) {
+        grace?.cancel()
+        let work = DispatchWorkItem {
             self.lastAnnounced = baselineAfterStartup(self.lastAnnounced)
             self.scheduleAnnouncement()
         }
+        grace = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Config.startupGraceSeconds, execute: work)
     }
 
     /// The two cameras change state independently; wait a moment so changes landing together are one sentence.
+    /// Nothing is announced while paused.
     private func scheduleAnnouncement() {
-        guard !isAnnouncementScheduled else { return }
+        guard !isPaused, !isAnnouncementScheduled else { return }
         isAnnouncementScheduled = true
         DispatchQueue.main.asyncAfter(deadline: .now() + Config.announceCoalesceSeconds) {
             self.isAnnouncementScheduled = false
+            guard !self.isPaused else { return }
             let current = self.panes.mapValues(\.state)
             let previous = self.lastAnnounced
             self.lastAnnounced = announcedBaseline(previous: previous, current: current)

@@ -20,25 +20,47 @@ struct Track {
     var heights: [(t: Double, h: Double)]
     /// Boxes over `Config.directionWindowSeconds`, for `travel`: the screen's colors and Decide's road evidence.
     var directionBoxes: [(t: Double, box: CGRect)] = []
+    /// The detector's label (car, truck, bus, motorcycle, bicycle), latest match.
+    var label = "car"
+    /// Frames in a row the front/rear model saw this car from behind (stage 1: the debug screen only).
+    var rearFrames = 0
+
+    var isSeenFromBehind: Bool { rearFrames >= Config.directionModelRearFrames }
 
     /// Which way the car is going over the longer direction window: surely (even at the confidence bound) and at least
     /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Decide takes either as proof of a road.
     var travel: Travel {
         let s = directionBoxes.map { (t: $0.t, h: Double($0.box.height)) }
-        let n = Double(s.count)
-        guard let first = s.first, let last = s.last, last.t - first.t >= Config.historySeconds, s.count >= 5 else { return .unclear }
-        let tm = s.reduce(0) { $0 + $1.t } / n, hm = s.reduce(0) { $0 + $1.h } / n
-        let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
-        guard stt > 0, hm > 0 else { return .unclear }
-        let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
-        let residualSquares = s.reduce(0) { sum, p in let e = p.h - hm - slope * (p.t - tm); return sum + e * e }
-        let margin = Config.tauConfidenceSigmas * (residualSquares / (n - 2)).squareRoot() / stt.squareRoot()
-        if slope + margin < 0 && slope / hm < -Config.awayMinShrinkPerSecond { return .away }
-        if slope - margin > 0 && slope / hm > Config.awayMinShrinkPerSecond { return .toward }
+        guard let first = s.first, let last = s.last, last.t - first.t >= Config.historySeconds, s.count >= 5,
+              let fit = fitLine(s), fit.hm > 0 else { return .unclear }
+        let margin = Config.tauConfidenceSigmas * fit.slopeError
+        if fit.slope + margin < 0 && fit.slope / fit.hm < -Config.awayMinShrinkPerSecond { return .away }
+        if fit.slope - margin > 0 && fit.slope / fit.hm > Config.awayMinShrinkPerSecond { return .toward }
         return .unclear
     }
 
     var isDrivingAway: Bool { travel == .away }
+
+    /// How far the center moved sideways (fraction of the picture width) over the direction window, once that spans
+    /// `Config.historySeconds`: which side of the picture an approaching car heads for, i.e. where the street is.
+    var driftFraction: Double? {
+        guard let first = directionBoxes.first, let last = directionBoxes.last, last.t - first.t >= Config.historySeconds
+        else { return nil }
+        return last.box.midX - first.box.midX
+    }
+
+    /// A vehicle sliding across the picture without growing: the camera looks across the road, not along it. Cars
+    /// coming along the road grow as they drift sideways; far cross streets and cars right at the curb are excluded
+    /// by height.
+    var isCrossingView: Bool {
+        guard let first = directionBoxes.first, let last = directionBoxes.last else { return false }
+        let seconds = last.t - first.t
+        guard seconds >= Config.misaimMinSeconds, first.box.height > 0,
+              last.box.height >= Config.misaimMinHeightFraction, last.box.height <= Config.misaimMaxHeightFraction,
+              abs(last.box.height / first.box.height - 1) <= Config.misaimMaxGrowthFraction else { return false }
+        let sideways = abs(last.box.midX - first.box.midX) / max(last.box.width, 1e-6) / seconds
+        return sideways >= Config.misaimSidewaysBoxWidthsPerSecond
+    }
 
     /// At a standstill: over at least `Config.historySeconds`, neither growing nor shrinking for sure, and its center
     /// moved less than `Config.stillMaxBoxWidthsPerSecond` box widths per second. Display only.
@@ -52,24 +74,30 @@ struct Track {
     /// Time to arrival = height / growth per second, from a least-squares line over the last `Config.historySeconds`.
     func estimate(atSeconds now: Double) -> ArrivalEstimate {
         let s = heights.filter { $0.t >= lastSeenSeconds - Config.historySeconds }
-        let n = Double(s.count)
-        let tm = s.reduce(0) { $0 + $1.t } / n
-        let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
-        guard lastSeenSeconds - firstSeenSeconds >= Config.historySeconds, s.count >= 3, stt > 0 else {
+        guard lastSeenSeconds - firstSeenSeconds >= Config.historySeconds, let fit = fitLine(s) else {
             return ArrivalEstimate(isTooNew: true, pointSeconds: nil, lowSeconds: nil)
         }
-        let hm = s.reduce(0) { $0 + $1.h } / n
-        let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
-        let residualSquares = s.reduce(0) { sum, p in
-            let e = p.h - hm - slope * (p.t - tm)
-            return sum + e * e
-        }
-        let slopeError = (residualSquares / (n - 2)).squareRoot() / stt.squareRoot()
         // The fit measures growth at the window's midpoint; subtract the time since then.
-        func tau(_ growth: Double) -> Double? { growth > 0 ? max(0, hm / growth - (now - tm)) : nil }
-        return ArrivalEstimate(isTooNew: false, pointSeconds: tau(slope),
-                               lowSeconds: tau(slope + Config.tauConfidenceSigmas * slopeError))
+        func tau(_ growth: Double) -> Double? { growth > 0 ? max(0, fit.hm / growth - (now - fit.tm)) : nil }
+        return ArrivalEstimate(isTooNew: false, pointSeconds: tau(fit.slope),
+                               lowSeconds: tau(fit.slope + Config.tauConfidenceSigmas * fit.slopeError))
     }
+}
+
+/// Least-squares line through height over time: mean time and height, slope, and the slope's standard error.
+/// Nil with fewer than 3 points or no spread in time.
+private func fitLine(_ s: [(t: Double, h: Double)]) -> (tm: Double, hm: Double, slope: Double, slopeError: Double)? {
+    let n = Double(s.count)
+    let tm = s.reduce(0) { $0 + $1.t } / n
+    let stt = s.reduce(0) { $0 + ($1.t - tm) * ($1.t - tm) }
+    guard s.count >= 3, stt > 0 else { return nil }
+    let hm = s.reduce(0) { $0 + $1.h } / n
+    let slope = s.reduce(0) { $0 + ($1.t - tm) * ($1.h - hm) } / stt
+    let residualSquares = s.reduce(0) { sum, p in
+        let e = p.h - hm - slope * (p.t - tm)
+        return sum + e * e
+    }
+    return (tm, hm, slope, (residualSquares / (n - 2)).squareRoot() / stt.squareRoot())
 }
 
 /// Matches detections to tracks frame by frame. One per pipeline.
@@ -77,6 +105,15 @@ final class Tracker {
     private var tracks: [Track] = []
     private var nextId = 1
     private var orientation: CGImagePropertyOrientation?
+
+    /// The front/rear model's verdicts (track id → probability seen from behind); returns the tracks updated.
+    func noteRear(_ probabilities: [Int: Double]) -> [Track] {
+        for i in tracks.indices {
+            guard let p = probabilities[tracks[i].id] else { continue }
+            tracks[i].rearFrames = p >= Config.directionModelRearProbability ? tracks[i].rearFrames + 1 : 0
+        }
+        return tracks
+    }
 
     func update(_ detections: [Detection], atSeconds t: Double, orientation: CGImagePropertyOrientation) -> [Track] {
         if orientation != self.orientation {
@@ -101,6 +138,7 @@ final class Tracker {
         for (i, j) in pairs {
             let box = detections[j].box
             tracks[i].box = box
+            tracks[i].label = detections[j].label
             tracks[i].lastSeenSeconds = t
             tracks[i].heights.append((t, box.height))
             tracks[i].heights.removeAll { $0.t < t - Config.historySeconds }
@@ -110,7 +148,7 @@ final class Tracker {
         for j in freeDetections.sorted() {
             let box = detections[j].box
             tracks.append(Track(id: nextId, box: box, firstSeenSeconds: t, lastSeenSeconds: t, heights: [(t, box.height)],
-                                directionBoxes: [(t, box)]))
+                                directionBoxes: [(t, box)], label: detections[j].label))
             nextId += 1
         }
         tracks.removeAll { t - $0.lastSeenSeconds > Config.trackLostSeconds }
