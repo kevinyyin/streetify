@@ -20,6 +20,10 @@ struct Track {
     var heights: [(t: Double, h: Double)]
     /// Boxes over `Config.directionWindowSeconds`, for `travel`: the screen's colors and Decide's road evidence.
     var directionBoxes: [(t: Double, box: CGRect)] = []
+    /// Frames in a row the front/rear model saw this car from behind (stage 1: the debug screen only).
+    var rearFrames = 0
+
+    var isSeenFromBehind: Bool { rearFrames >= Config.directionModelRearFrames }
 
     /// Which way the car is going over the longer direction window: surely (even at the confidence bound) and at least
     /// `Config.awayMinShrinkPerSecond` of its height per second, so a parked car's jitter reads as neither. Decide takes either as proof of a road.
@@ -99,6 +103,15 @@ final class Tracker {
     private var tracks: [Track] = []
     private var nextId = 1
     private var orientation: CGImagePropertyOrientation?
+
+    /// The front/rear model's verdicts (track id → probability seen from behind); returns the tracks updated.
+    func noteRear(_ probabilities: [Int: Double]) -> [Track] {
+        for i in tracks.indices {
+            guard let p = probabilities[tracks[i].id] else { continue }
+            tracks[i].rearFrames = p >= Config.directionModelRearProbability ? tracks[i].rearFrames + 1 : 0
+        }
+        return tracks
+    }
 
     func update(_ detections: [Detection], atSeconds t: Double, orientation: CGImagePropertyOrientation) -> [Track] {
         if orientation != self.orientation {

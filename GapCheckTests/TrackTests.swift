@@ -99,4 +99,17 @@ final class TrackTests: XCTestCase {
         XCTAssertTrue(crossing.isCrossingView)
         XCTAssertFalse(trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }).isCrossingView)
     }
+
+    /// Stage 1 of the front/rear model: three frames in a row at 0.8 or more mean seen from behind; a miss resets it.
+    func testRearNeedsThreeFramesInARow() {
+        let tracker = Tracker()
+        let box = CGRect(x: 0.4, y: 0.4, width: 0.2, height: 0.2)
+        _ = tracker.update([car(box)], atSeconds: 0, orientation: .up)
+        _ = tracker.noteRear([1: 0.9])
+        _ = tracker.noteRear([1: 0.9])
+        XCTAssertFalse(tracker.noteRear([1: 0.5])[0].isSeenFromBehind)
+        _ = tracker.noteRear([1: 0.9])
+        _ = tracker.noteRear([1: 0.9])
+        XCTAssertTrue(tracker.noteRear([1: 0.85])[0].isSeenFromBehind)
+    }
 }

@@ -146,7 +146,8 @@ struct ContentView: View {
             } else {
                 ctx.stroke(Path(rect(track.box)), with: .color(color), lineWidth: 2)
             }
-            let time = e.isTooNew ? "new" : e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "-"
+            let time = (e.isTooNew ? "new" : e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "-")
+                + (track.isSeenFromBehind ? "  rear" : "")
             let r = rect(track.box)
             ctx.draw(Text("\(track.id)  \(time)").font(.caption.bold()).foregroundStyle(color),
                      at: CGPoint(x: r.minX, y: r.minY - 2), anchor: .bottomLeading)
