@@ -261,6 +261,16 @@ final class DecideTests: XCTestCase {
                           .unknown(.turnedAround))
     }
 
+    /// The road is a line, not a direction: obeying "Turn the phone around" turns the camera axis 180° and must not
+    /// read as misaimed (review I2), or the two instructions would send the user back and forth.
+    func testTurningThePhoneAroundIsNotMisaimed() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(4, heading: 270), tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)])
+        XCTAssertNotEqual(d.update(obs(4.1, heading: 90), tracks: []), .unknown(.misaimed))
+        XCTAssertEqual(d.headingErrorDegrees ?? -1, 0, accuracy: 1e-9)
+    }
+
     /// A parked car sliding sideways (the hand turning) is no evidence of which way the street lies.
     func testDriftOfANonApproachingCarDoesNotCount() {
         let d = Decider(checksTurnAround: true)
