@@ -10,6 +10,8 @@ enum UnknownReason: Equatable {
     case noPermission, unsupported, interrupted, overheated
     /// No moving vehicle seen lately, so an empty picture says nothing about the road.
     case noRoadSeen
+    /// The front camera sees the user's face: the screen faces them, not down the road.
+    case facingUser
 }
 
 /// How soon an approaching car arrives, as far as can be told.
@@ -35,6 +37,8 @@ struct FrameObservation {
     let tile: CGRect
     /// Non-vehicles (people) that hide the road; they count toward rule 5 but are never tracked as cars.
     var blockerBoxes: [CGRect] = []
+    /// Faces the front camera sees, Vision-normalized; always empty for the back camera.
+    var faceBoxes: [CGRect] = []
 }
 
 /// The ordered rules for one direction. Starts Unknown; every failure ends Unknown, never Clear.
@@ -102,6 +106,11 @@ final class Decider {
                 return .approaching(.seconds(Int(soonest.rounded())))
             }
             return .approaching(approaching.contains(where: \.isTooNew) ? .unmeasured : .far)
+        }
+
+        if o.faceBoxes.reduce(0.0, { $0 + $1.width * $1.height }) >= Config.faceMinAreaFraction {
+            roadSeenSeconds = nil
+            return .unknown(.facingUser)
         }
 
         // Every remaining track is stationary or leaving; people hide the road too.

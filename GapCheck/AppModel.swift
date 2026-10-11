@@ -176,7 +176,7 @@ final class AppModel {
             do {
                 let camera = try LiveCameraSource(session: session, position: position, motion: motion, level: level)
                 observePressure(camera.device)
-                run(camera, on: side)
+                run(camera, on: side, detectsFaces: position == .front)
             } catch {
                 // It never starts, so its side stays Unknown and is announced as stopped after the grace period.
                 Self.log.error("camera \(position == .front ? "front" : "back") failed: \(error.localizedDescription)")
@@ -232,9 +232,9 @@ final class AppModel {
         scheduleAnnouncement()
     }
 
-    private func run(_ source: FrameSource, on side: Side) {
+    private func run(_ source: FrameSource, on side: Side, detectsFaces: Bool = false) {
         pipelines[side]?.stop()
-        guard let detector = try? Detector() else { return } // no model: no pipeline, the side stays Unknown
+        guard let detector = try? Detector(detectsFaces: detectsFaces) else { return } // no model: no pipeline, the side stays Unknown
         let pipeline = Pipeline(side: side, source: source, detector: detector)
         pipeline.onUpdate = { [weak self] update in
             guard let self else { return }

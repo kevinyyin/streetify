@@ -54,6 +54,18 @@
 - [x] Review fixes (2026-10-09): hold instructions no longer drop car news; tilt keeps the car as last said (nothing spoken over the tone); "Phone too hot" de-duplicated in the speech queue so a side that moved on keeps its own sentence; nothing said and tone off while paused; no "camera stopped" as an interruption ends or after a quick pause and resume; faults survive frames in flight; session restarts only after a media-services reset, on one serial queue; one outline model for both sides; footage score counts "no road seen" like Clear (not verified on device)
 - [ ] Still on `feature-fixing`, not merged: people and bike warnings, partly-covered lens check (fires at night), face/compass/crossing aim checks, heartbeat tick
 
+## Field test fixes (2026-10-10)
+Spec: docs/superpowers/specs/2026-10-10-field-test-fixes-design.md; plan: docs/superpowers/plans/2026-10-10-field-test-fixes.md
+- [x] Face check: "Turn the screen away from you" (from feature-fixing) (not verified on device)
+- [ ] Misaimed: crossing traffic or compass off the street heading (from feature-fixing)
+- [ ] Curb only: the phone moving says "Hold still" and judges no cars
+- [ ] Cars driving away no longer count as approaching
+- [ ] A tilted phone still reports cars; the tone yields to them
+- [ ] "Turn the phone around" from approaching cars drifting the wrong way
+- [ ] Sideways hold: cameras toward the street, fingers off the lenses
+- [ ] Front/rear model (CFV ConvNeXt), stage 1: debug screen only
+- [ ] Best installed voice; one-time tip when only the basic voice is installed
+
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)
 - [ ] On device: front-camera range, 5-minute heat run, VoiceOver with Screen Curtain

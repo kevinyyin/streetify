@@ -19,7 +19,8 @@ Time to arrival = box height / change in height per second. Height, because hand
 2. Phone not level (live only): Unknown `notLevel`, unless a car was Approaching within `Config.tiltCarMemorySeconds` (then the last Approaching state is kept, so the tilt is no news and nothing is spoken over the tone; changed 2026-10-09 from "Approaching, unmeasured", which spoke "car" while tilted).
 3. Flat (low Laplacian variance) and not overexposed: `covered`; else too dark or too bright: Unknown with that reason.
 4. Any track arriving within `Config.approachWindowSeconds` (start 20 s), or too new to measure: Approaching, with the smallest time or "far".
-5. Stationary vehicle covering over `Config.blockedFraction` of the center tile: Unknown `viewBlocked`.
+5. Front camera only: faces covering at least `Config.faceMinAreaFraction` (0.05) of the picture: Unknown `facingUser` ("Turn the screen away from you"); the road evidence is dropped (from `feature-fixing`, 2026-10-10).
+5b. Stationary vehicle covering over `Config.blockedFraction` of the center tile: Unknown `viewBlocked`.
 6. No moving vehicle (growing or shrinking over `Config.directionWindowSeconds`) seen in `Config.roadEvidenceSeconds`: Unknown `noRoadSeen`. Clear means "road seen and empty", not "nothing detected".
 7. Clear once rules 1 to 6 haven't fired for `Config.clearHoldSeconds` (start 1.5 s). Until then, keep the previous state.
 
