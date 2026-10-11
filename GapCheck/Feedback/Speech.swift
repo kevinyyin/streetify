@@ -74,16 +74,38 @@ struct SpeechQueue {
     }
 }
 
+/// What picking a voice needs from an installed one.
+struct VoiceInfo {
+    let identifier: String
+    let language: String
+    let quality: AVSpeechSynthesisVoiceQuality
+    let isNovelty: Bool
+    let isPersonal: Bool
+}
+
+/// The best installed voice for `language`: premium, then enhanced, then the basic default; never a novelty voice or
+/// the user's Personal Voice. Nil when none is installed for the language (the system then picks).
+func bestVoice(_ voices: [VoiceInfo], language: String) -> VoiceInfo? {
+    voices.filter { $0.language == language && !$0.isNovelty && !$0.isPersonal }.max { $0.quality.rawValue < $1.quality.rawValue }
+}
+
 /// Plays the queue. With VoiceOver on, VoiceOver speaks, so there is never a second voice. Not verified on device.
 final class Speech: NSObject, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
     private var queue = SpeechQueue()
+    /// The best installed voice (the basic one sounds synthetic); apps can't download better ones, only the user can.
+    private var voice: AVSpeechSynthesisVoice?
+    /// Only the basic voice is installed for the language: the first launch tells the user where to get a better one.
+    private(set) var hasOnlyBasicVoice = true
     /// Each side's state now, so a sentence that waited is said as it is now (or dropped).
     var currentStates: () -> [Side: DirectionState] = { [:] }
 
     override init() {
         super.init()
         synthesizer.delegate = self
+        pickVoice()
+        NotificationCenter.default.addObserver(forName: AVSpeechSynthesizer.availableVoicesDidChangeNotification,
+                                               object: nil, queue: .main) { [weak self] _ in self?.pickVoice() }
         NotificationCenter.default.addObserver(forName: UIAccessibility.announcementDidFinishNotification,
                                                object: nil, queue: .main) { [weak self] note in
             self?.finished(note.userInfo?[UIAccessibility.announcementStringValueUserInfoKey] as? String)
@@ -108,6 +130,16 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
         speak(next.text)
     }
 
+    private func pickVoice() {
+        let installed = AVSpeechSynthesisVoice.speechVoices().map {
+            VoiceInfo(identifier: $0.identifier, language: $0.language, quality: $0.quality,
+                      isNovelty: $0.voiceTraits.contains(.isNoveltyVoice), isPersonal: $0.voiceTraits.contains(.isPersonalVoice))
+        }
+        let best = bestVoice(installed, language: AVSpeechSynthesisVoice.currentLanguageCode())
+        voice = best.flatMap { AVSpeechSynthesisVoice(identifier: $0.identifier) }
+        hasOnlyBasicVoice = (best?.quality ?? .default) == .default
+    }
+
     /// Cuts off whatever is playing.
     private func speak(_ text: String) {
         if UIAccessibility.isVoiceOverRunning {
@@ -117,7 +149,10 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
             UIAccessibility.post(notification: .announcement, argument: announcement)
         } else {
             synthesizer.stopSpeaking(at: .immediate)
-            synthesizer.speak(AVSpeechUtterance(string: text))
+            let utterance = AVSpeechUtterance(string: text)
+            utterance.voice = voice // nil: the system's default
+            utterance.prefersAssistiveTechnologySettings = true // the user's own speech settings win when they have them
+            synthesizer.speak(utterance)
         }
     }
 }
