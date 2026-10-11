@@ -62,6 +62,30 @@ func attitude(gravityX x: Double, gravityY y: Double, gravityZ z: Double) -> Att
     return Attitude(hold: hold, pitchDegrees: pitch, rollDegrees: roll)
 }
 
+/// Compass heading (degrees clockwise from magnetic north) of the back camera's axis, from gravity and the magnetic
+/// field, both in device coordinates (CMDeviceMotion). The front camera looks the opposite way; Decide only compares
+/// a heading with itself, so either camera can use it. Nil when the camera points too steeply up or down to have one.
+func cameraHeadingDegrees(gravity g: (x: Double, y: Double, z: Double), field m: (x: Double, y: Double, z: Double)) -> Double? {
+    typealias Vector = (x: Double, y: Double, z: Double)
+    func cross(_ a: Vector, _ b: Vector) -> Vector { (a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x) }
+    func unit(_ v: Vector) -> Vector? {
+        let length = (v.x * v.x + v.y * v.y + v.z * v.z).squareRoot()
+        return length > 1e-9 ? (v.x / length, v.y / length, v.z / length) : nil
+    }
+    guard let down = unit(g), let east = unit(cross(down, m)) else { return nil }
+    let north = cross(east, down)
+    // The back camera looks along device −z.
+    let e = -east.z, n = -north.z
+    guard (e * e + n * n).squareRoot() >= Config.headingMinHorizontalFraction else { return nil }
+    let degrees = atan2(e, n) * 180 / .pi
+    return degrees < 0 ? degrees + 360 : degrees
+}
+
+/// The smaller angle between two headings, 0...180.
+func angleDifferenceDegrees(_ a: Double, _ b: Double) -> Double {
+    abs(remainder(a - b, 360))
+}
+
 /// EXIF orientation to hand Vision for a camera's buffers. From Apple's Vision samples; not verified on device.
 func exifOrientation(hold: Hold, position: AVCaptureDevice.Position) -> CGImagePropertyOrientation {
     switch (hold, position) {

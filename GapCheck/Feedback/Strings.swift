@@ -20,6 +20,7 @@ enum Strings {
         case .unknown(.overheated): return "Phone too hot"
         case .unknown(.noRoadSeen): return "\(name): no road seen"
         case .unknown(.facingUser): return "Turn the screen away from you"
+        case .unknown(.misaimed): return "Turn the phone back toward the road"
         }
     }
 
@@ -42,6 +43,7 @@ enum Strings {
         case .unknown(.overheated): return "Too hot"
         case .unknown(.noRoadSeen): return "No road seen"
         case .unknown(.facingUser): return "Screen faces you"
+        case .unknown(.misaimed): return "Turn to road"
         }
     }
 

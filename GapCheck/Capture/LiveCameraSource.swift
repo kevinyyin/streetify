@@ -61,9 +61,16 @@ final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSam
         guard isDue(t, after: lastSeconds) else { return }
         lastSeconds = t
         // No motion data reads as not level, so Decide reports Unknown.
-        let a = motion.deviceMotion.map { attitude(gravityX: $0.gravity.x, gravityY: $0.gravity.y, gravityZ: $0.gravity.z) }
+        let m = motion.deviceMotion
+        let a = m.map { attitude(gravityX: $0.gravity.x, gravityY: $0.gravity.y, gravityZ: $0.gravity.z) }
+        // An uncalibrated compass (or none) gives no heading, and the heading check simply doesn't run.
+        let heading = m.flatMap { d -> Double? in
+            guard d.magneticField.accuracy != .uncalibrated else { return nil }
+            let f = d.magneticField.field
+            return cameraHeadingDegrees(gravity: (d.gravity.x, d.gravity.y, d.gravity.z), field: (f.x, f.y, f.z))
+        }
         onFrame?(Frame(pixelBuffer: buffer, timestampSeconds: t,
                        orientation: exifOrientation(hold: a?.hold ?? .portrait, position: position),
-                       isLevel: level.update(a), tiltErrorDegrees: a?.tiltErrorDegrees ?? 90))
+                       isLevel: level.update(a), tiltErrorDegrees: a?.tiltErrorDegrees ?? 90, headingDegrees: heading))
     }
 }

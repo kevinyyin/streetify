@@ -107,9 +107,12 @@ struct ToneSettings: Equatable {
     let frequencyHz: Double
 }
 
-/// The tone means only "the phone isn't level": on while tilted, pitch rising toward level; silent when level.
-func toneSettings(isLevel: Bool, tiltErrorDegrees: Double) -> ToneSettings {
-    guard !isLevel else { return ToneSettings(isOn: false, frequencyHz: 0) }
-    let closeness = 1 - min(tiltErrorDegrees, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
+/// The tone means only "the phone isn't pointed right": on while tilted, or while the compass says it turned off the
+/// street (`headingErrorDegrees`, passed only then), pitch rising toward aimed; silent when aimed.
+func toneSettings(isLevel: Bool, tiltErrorDegrees: Double, headingErrorDegrees: Double? = nil) -> ToneSettings {
+    var errors: [Double] = isLevel ? [] : [tiltErrorDegrees]
+    if let headingErrorDegrees { errors.append(headingErrorDegrees) }
+    guard let error = errors.max() else { return ToneSettings(isOn: false, frequencyHz: 0) }
+    let closeness = 1 - min(error, Config.aimMaxErrorDegrees) / Config.aimMaxErrorDegrees
     return ToneSettings(isOn: true, frequencyHz: Config.aimMinHz + (Config.aimMaxHz - Config.aimMinHz) * closeness)
 }

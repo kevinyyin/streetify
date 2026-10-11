@@ -210,13 +210,21 @@ final class FeedbackTests: XCTestCase {
         XCTAssertGreaterThan(near.frequencyHz, far.frequencyHz)
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
     }
+
+    /// The tone also guides the phone back to the street heading.
+    func testToneGuidesHeading() {
+        let off = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 40)
+        let near = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 26)
+        XCTAssertTrue(off.isOn)
+        XCTAssertGreaterThan(near.frequencyHz, off.frequencyHz)
+    }
 }
 
 /// Invariant 1: nothing the app says or shows reads as permission to cross.
 final class BannedWordsTests: XCTestCase {
     func testNoSentenceOrLabelSaysGo() throws {
         let reasons: [UnknownReason] = [.stale, .notLevel, .tooDark, .tooBright, .covered, .viewBlocked, .noPermission,
-                                        .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser]
+                                        .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser, .misaimed]
         let arrivals: [Arrival] = [.seconds(0), .seconds(1), .seconds(7), .far, .unmeasured]
         let states: [DirectionState] = [.clear] + reasons.map { .unknown($0) } + arrivals.map { .approaching($0) }
         var texts = [Strings.paused, Strings.holdInstructions]
