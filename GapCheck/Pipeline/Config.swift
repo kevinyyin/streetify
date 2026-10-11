@@ -57,7 +57,7 @@ enum Config {
     static let blockedFraction = 0.3
     /// With no moving vehicle seen for this long, an empty picture no longer reads "no cars" but "no road seen".
     static let roadEvidenceSeconds = 300.0
-    /// While the phone can't judge cars (moving, tilted), a car seen this recently is still reported as last said.
+    /// While the phone moves, a car seen this recently is still reported as last said.
     static let carMemorySeconds = 1.0
     /// RMS window for telling walking from standing.
     static let stillWindowSeconds = 1.0

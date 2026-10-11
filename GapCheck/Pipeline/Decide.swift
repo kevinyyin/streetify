@@ -124,11 +124,6 @@ final class Decider {
             // Curb only (owner, 2026-10-10): walking makes every box grow as if a car were coming.
             return carJustSeen(atSeconds: t) ?? .unknown(.moving)
         }
-        if !o.isLevel {
-            // Tilting doesn't make a car that was just seen go away. It keeps the car as last reported, so the tilt
-            // itself is no news: nothing is spoken over the tone.
-            return carJustSeen(atSeconds: t) ?? .unknown(.notLevel)
-        }
         if let reason = qualityProblem(o.quality) { return .unknown(reason) }
 
         let approaching = tracks.filter(countsAsComing).map { $0.estimate(atSeconds: t) }
@@ -140,6 +135,8 @@ final class Decider {
             }
             return .approaching(approaching.contains(where: \.isTooNew) ? .unmeasured : .far)
         }
+        // Tilt loses the horizon (far cars), so it stops "no cars"; cars still in view were reported above.
+        if !o.isLevel { return .unknown(.notLevel) }
 
         if o.faceBoxes.reduce(0.0, { $0 + $1.width * $1.height }) >= Config.faceMinAreaFraction {
             roadSeenSeconds = nil
@@ -162,7 +159,7 @@ final class Decider {
 }
 
 extension Decider {
-    /// While the phone can't judge cars, a car reported within `Config.carMemorySeconds` stays as last said.
+    /// While the phone moves, a car reported within `Config.carMemorySeconds` stays as last said.
     fileprivate func carJustSeen(atSeconds t: Double) -> DirectionState? {
         guard let seen = lastApproachSeconds, t - seen <= Config.carMemorySeconds else { return nil }
         if case .approaching = state { return state }
