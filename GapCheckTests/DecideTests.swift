@@ -80,17 +80,11 @@ final class DecideTests: XCTestCase {
 
     /// Tilting right after a car was seen still reports the car, unchanged so nothing is spoken over the tone, then
     /// the tilt.
-    func testTiltKeepsACarJustSeen() {
-        let d = Decider()
-        let seen = d.update(obs(1.5), tracks: [approachingTrack])
-        guard case .approaching = seen else { return XCTFail("expected approach") }
-        XCTAssertEqual(d.update(obs(1.6, level: false), tracks: []), seen)
-        XCTAssertNil(announce(previous: [.right: seen], current: [.right: d.state]))
-        XCTAssertEqual(d.update(obs(2.6, level: false), tracks: []), .unknown(.notLevel))
-    }
-
-    func testNotLevelBeatsApproaching() {
-        XCTAssertEqual(Decider().update(obs(1.5, level: false), tracks: [approachingTrack]), .unknown(.notLevel))
+    /// Tilt loses the horizon, so it stops "no cars"; a car still in view is still reported.
+    func testCarBeatsNotLevel() {
+        guard case .approaching(.seconds) = Decider().update(obs(1.5, level: false), tracks: [approachingTrack]) else {
+            return XCTFail("a car is reported while tilted")
+        }
     }
 
     func testTooDark() {

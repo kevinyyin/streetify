@@ -60,7 +60,7 @@ Spec: docs/superpowers/specs/2026-10-10-field-test-fixes-design.md; plan: docs/s
 - [x] Misaimed: crossing traffic or compass off the street heading (from feature-fixing) (compass not verified on device)
 - [x] Curb only: the phone moving says "Hold still" and judges no cars (threshold not verified on device)
 - [x] Cars driving away no longer count as approaching
-- [ ] A tilted phone still reports cars; the tone yields to them
+- [x] A tilted phone still reports cars; the tone yields to them (not verified on device)
 - [ ] "Turn the phone around" from approaching cars drifting the wrong way
 - [ ] Sideways hold: cameras toward the street, fingers off the lenses
 - [ ] Front/rear model (CFV ConvNeXt), stage 1: debug screen only

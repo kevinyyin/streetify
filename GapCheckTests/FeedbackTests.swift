@@ -211,6 +211,11 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
     }
 
+    /// While a car is reported the tone stops, so the car's sentence is heard.
+    func testToneYieldsToCars() {
+        XCTAssertFalse(toneSettings(isLevel: false, tiltErrorDegrees: 30, isCarComing: true).isOn)
+    }
+
     /// The tone also guides the phone back to the street heading.
     func testToneGuidesHeading() {
         let off = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 40)
