@@ -2,7 +2,7 @@
 
 The app's name is Streetify; the code, Xcode target and scheme keep the name GapCheck.
 
-iOS app for blind pedestrians at unsignalized crossings. The user holds the iPhone level and edge-on toward the street; the front and back cameras look down the road both ways. Each direction reports Clear, Approaching (with seconds to arrival) or Unknown (with a reason), through haptics, a tone and short speech. Everything runs on-device. Scope: ~25 mph streets, 1 to 2 lanes, user standing at the curb.
+iOS app for blind pedestrians at unsignalized crossings. The user holds the iPhone sideways and level, by the end without the cameras, cameras toward the street and screen facing left (2026-10-10); the front and back cameras look down the road both ways. Each direction reports Clear, Approaching (with seconds to arrival) or Unknown (with a reason), through haptics, a tone and short speech. Everything runs on-device. Scope: ~25 mph streets, 1 to 2 lanes, user standing at the curb.
 
 ## Safety invariants
 
@@ -35,6 +35,7 @@ xcodegen generate
 xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' -collect-test-diagnostics never test
 xcodebuild -scheme GapCheck -destination 'platform=iOS Simulator,name=iPhone 17' -collect-test-diagnostics never test -only-testing:GapCheckTests/<Class>
 .venv/bin/yolo export model=yolo11n.pt format=coreml nms=True imgsz=640   # then move yolo11n.mlpackage to GapCheck/Pipeline/
+.venv/bin/python tools/export_car_orientation.py   # front/rear model; needs tools/convnext-multi-weak.pth (see the script) and timm
 ```
 
 Model export venv: Python 3.12 with torch 2.7, coremltools 9.0, numpy<2.3 (coremltools fails on Python 3.14 with torch 2.14). Rebuild it with `"$(brew --prefix python@3.12)/bin/python3.12" -m venv .venv && .venv/bin/pip install "torch==2.7.*" "torchvision==0.22.*" ultralytics "coremltools==9.0" "numpy<2.3"`.

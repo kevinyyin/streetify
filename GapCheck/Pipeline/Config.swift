@@ -22,6 +22,10 @@ enum Config {
     static let vehicleLabels: Set<String> = ["car", "truck", "bus", "motorcycle", "bicycle"]
     /// COCO classes that can hide the road (rule 5) but are never tracked as cars.
     static let blockerLabels: Set<String> = ["person"]
+    /// Label given to the front camera's face boxes; never tracked.
+    static let faceLabel = "face"
+    /// Faces covering this fraction of the front camera's picture mean the screen faces the user.
+    static let faceMinAreaFraction = 0.05
     /// Detections below this confidence are ignored; lower means more detections.
     static let minDetectionConfidence: Float = 0.25
 
@@ -53,8 +57,47 @@ enum Config {
     static let blockedFraction = 0.3
     /// With no moving vehicle seen for this long, an empty picture no longer reads "no cars" but "no road seen".
     static let roadEvidenceSeconds = 300.0
-    /// While tilted, a car seen this recently is still reported ("car", no time).
-    static let tiltCarMemorySeconds = 1.0
+    /// While the phone moves, a car seen this recently is still reported as last said.
+    static let carMemorySeconds = 1.0
+    /// RMS window for telling walking from standing.
+    static let stillWindowSeconds = 1.0
+    /// Hand-held userAcceleration RMS above this is walking. Calibrate on device (the debug screen shows it).
+    static let movingAccelerationG = 0.06
+
+    /// A car sliding sideways at least this many box widths per second without growing crosses the view: misaimed.
+    static let misaimSidewaysBoxWidthsPerSecond = 1.0
+    /// Seconds of a track's boxes needed before it can count as crossing.
+    static let misaimMinSeconds = 0.5
+    /// A crossing car changes height by at most this fraction over that time; an approaching one grows.
+    static let misaimMaxGrowthFraction = 0.2
+    /// Crossing cars are at least this tall (fraction of the picture), so a far cross street doesn't count.
+    static let misaimMinHeightFraction = 0.05
+    /// And at most this tall, so a car passing right at the curb doesn't count.
+    static let misaimMaxHeightFraction = 0.3
+    /// After crossing traffic is seen, the side reads misaimed this long.
+    static let misaimMemorySeconds = 10.0
+    /// The compass may drift this far from the locked street heading before the side reads misaimed.
+    static let headingToleranceDegrees = 25.0
+    /// The camera axis's horizontal part below this (pointing steeply up or down) gives no heading.
+    static let headingMinHorizontalFraction = 0.5
+
+    /// An approaching car's center must move at least this much of the picture width to show where the street is.
+    static let turnedAroundMinDriftFraction = 0.02
+    /// Only these show where the street is: bikes also ride along the sidewalk, on the other side of the picture.
+    static let streetVehicleLabels: Set<String> = ["car", "truck", "bus"]
+    /// This many approaching cars in a row drifting away from the street's side mean the phone is turned around.
+    static let turnedAroundMinCars = 2
+
+    /// Front/rear model (CFV ConvNeXt): smaller crops are far outside its training data (parked cars about 3 m away).
+    static let directionModelMinHeightPixels = 112.0
+    /// At most this many crops classified per frame, largest first.
+    static let directionModelMaxCropsPerFrame = 2
+    /// A crop at least this likely back-left, back or back-right counts as seen from behind for that frame.
+    static let directionModelRearProbability = 0.8
+    /// Seen from behind this many frames in a row: the car is going away.
+    static let directionModelRearFrames = 3
+    /// Stage 1: the verdict only shows on screen. Flip after the curb field test confirms it on real passing cars.
+    static let directionModelSuppressesRearCars = false
 
     /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
@@ -70,6 +113,8 @@ enum Config {
     static let newCarJumpSeconds = 3.0
     /// A sentence not reported finished after this long counts as done, so the next one can play.
     static let maxUtteranceSeconds = 4.0
+    /// A long sentence gets this many seconds per word instead, so the hold instructions aren't cut off.
+    static let utteranceSecondsPerWord = 0.45
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 
@@ -86,6 +131,12 @@ enum Config {
     static let lineMaxGapBoxWidths = 1.5
     /// Screen only: segmentation masks below this confidence are not drawn.
     static let minMaskConfidence: Float = 0.25
+    /// Screen only: of two masks overlapping more than this, only the more confident is drawn.
+    static let maskOverlapIoU = 0.5
+    /// Screen only: at most this many masks are drawn per frame, most confident first.
+    static let maxMaskCount = 30
+    /// Screen only: a mask overlapping a car's box at least this much is that car's outline.
+    static let maskMatchIoU = 0.3
 
     /// Luma sampling step for the image-quality check.
     static let qualityStridePixels = 4

@@ -51,7 +51,21 @@
 - [x] Preview off with VoiceOver (unless `-showOverlay`) and rendered off the warning pipeline; tone silent until the first tilt reading
 - [x] "close" instead of "0 seconds"; banned-words test (invariant 1); hold instructions on first launch and long press
 - [x] Stop tracking build/ (its files stay in history from Nathan's commit; removing them needs a force-push, owner's call)
+- [x] Review fixes (2026-10-09): hold instructions no longer drop car news; tilt keeps the car as last said (nothing spoken over the tone); "Phone too hot" de-duplicated in the speech queue so a side that moved on keeps its own sentence; nothing said and tone off while paused; no "camera stopped" as an interruption ends or after a quick pause and resume; faults survive frames in flight; session restarts only after a media-services reset, on one serial queue; one outline model for both sides; footage score counts "no road seen" like Clear (not verified on device)
 - [ ] Still on `feature-fixing`, not merged: people and bike warnings, partly-covered lens check (fires at night), face/compass/crossing aim checks, heartbeat tick
+
+## Field test fixes (2026-10-10)
+Spec: docs/superpowers/specs/2026-10-10-field-test-fixes-design.md; plan: docs/superpowers/plans/2026-10-10-field-test-fixes.md
+- [x] Face check: "Turn the screen away from you" (from feature-fixing) (not verified on device)
+- [x] Misaimed: crossing traffic or compass off the street heading (from feature-fixing) (compass not verified on device)
+- [x] Curb only: the phone moving says "Hold still" and judges no cars (threshold not verified on device)
+- [x] Cars driving away no longer count as approaching
+- [x] A tilted phone still reports cars; the tone yields to them (not verified on device)
+- [x] "Turn the phone around" from approaching cars drifting the wrong way (not verified on device: the front feed should read text backwards)
+- [x] Sideways hold: cameras toward the street, fingers off the lenses (not verified on device; landscape layout not seen in the simulator)
+- [x] Front/rear model (CFV ConvNeXt), stage 1: debug screen only (speed and accuracy not verified on device; flip `directionModelSuppressesRearCars` only after the curb field test)
+- [x] Best installed voice; one-time tip when only the basic voice is installed (not verified on device)
+- [ ] Tone: recorded claves tick that speeds up toward level, waiting on the owner's sound files (claveshi.wav, clavelow.wav in GapCheck/Feedback/Sounds/)
 
 ## Phase 4: test and tune (hours 26 to 32)
 - [ ] Run all footage: warning seconds per car, misses, false alarms, parked cars (report ready: FootageTests/testFootageReport; each clip needs `<clip>.passes.txt`: one pass time in seconds per line)

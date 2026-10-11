@@ -14,6 +14,14 @@ final class FootageTests: XCTestCase {
         XCTAssertEqual(score.falseAlarmSeconds, 0.9, accuracy: 0.05)
     }
 
+    /// Before the first moving car the state is "no road seen", not Clear; the warning still starts with the car.
+    func testWarningStartsAfterNoRoadSeen() {
+        let timeline = stride(from: 0.0, through: 30.0, by: 0.1).map { t -> (t: Double, state: DirectionState) in
+            (t, t < 21 ? .unknown(.noRoadSeen) : t < 26 ? .approaching(.seconds(4)) : .clear)
+        }
+        XCTAssertEqual(scoreFootage(timeline, passSeconds: [25]).warningSeconds[0], 25 - 20.9, accuracy: 0.01)
+    }
+
     func testFootageReport() throws {
         let footage = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Footage")
@@ -54,7 +62,7 @@ final class FootageTests: XCTestCase {
 }
 
 struct FootageScore {
-    /// Per pass: seconds from the last Clear before it (or the clip start) to the pass.
+    /// Per pass: seconds from the last Clear or "no road seen" before it (or the clip start) to the pass.
     let warningSeconds: [Double]
     /// Time spent Approaching with no pass in the following approach window.
     let falseAlarmSeconds: Double
@@ -63,7 +71,8 @@ struct FootageScore {
 func scoreFootage(_ timeline: [(t: Double, state: DirectionState)], passSeconds: [Double]) -> FootageScore {
     let start = timeline.first?.t ?? 0
     let warnings = passSeconds.map { pass in
-        pass - (timeline.last(where: { $0.t < pass && $0.state == .clear })?.t ?? start)
+        // Both say "nothing here": Clear, and Unknown "no road seen" until the first moving car.
+        pass - (timeline.last(where: { $0.t < pass && ($0.state == .clear || $0.state == .unknown(.noRoadSeen)) })?.t ?? start)
     }
     var falseAlarm = 0.0
     for (a, b) in zip(timeline, timeline.dropFirst()) {

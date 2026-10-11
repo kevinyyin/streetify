@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import GapCheck
 
@@ -36,10 +37,25 @@ final class FeedbackTests: XCTestCase {
     }
 
     /// Phone-wide news is the same sentence for both sides: it is said once.
-    func testSameSentenceForBothSidesIsSaidOnce() {
-        let e = announce(previous: stale, current: [.left: .unknown(.overheated), .right: .unknown(.overheated)])
-        XCTAssertEqual(e?.text, "Phone too hot")
-        XCTAssertEqual(e?.haptic, .unknown)
+    func testSameSentenceForBothSidesIsSaidOnce() throws {
+        let hot: [Side: DirectionState] = [.left: .unknown(.overheated), .right: .unknown(.overheated)]
+        let e = try XCTUnwrap(announce(previous: stale, current: hot))
+        XCTAssertEqual(e.haptic, .unknown)
+        var q = SpeechQueue()
+        XCTAssertEqual(q.add(e.utterances, atSeconds: 0, current: hot)?.text, "Phone too hot")
+        XCTAssertNil(q.finished(text: "Phone too hot", atSeconds: 1, current: hot))
+    }
+
+    /// If one side has moved on by the time the shared sentence plays, the other side still gets its own.
+    func testSharedSentenceStillSaidForTheSideThatKeepsIt() throws {
+        let e = try XCTUnwrap(announce(previous: stale, current: [.left: .unknown(.overheated), .right: .unknown(.overheated)]))
+        let car = utterance(.left, .approaching(.seconds(9)))
+        var q = SpeechQueue()
+        _ = q.add([car], atSeconds: 0)
+        XCTAssertNil(q.add(e.utterances, atSeconds: 0.2))
+        let now: [Side: DirectionState] = [.left: .unknown(.stale), .right: .unknown(.overheated)]
+        XCTAssertEqual(q.finished(text: car.text, atSeconds: 1.5, current: now)?.text, "Left: camera stopped")
+        XCTAssertEqual(q.finished(text: "Left: camera stopped", atSeconds: 2.5, current: now)?.text, "Phone too hot")
     }
 
     func testPreviewOffForVoiceOverUnlessAsked() {
@@ -195,16 +211,40 @@ final class FeedbackTests: XCTestCase {
         XCTAssertGreaterThan(near.frequencyHz, far.frequencyHz)
         XCTAssertTrue((Config.aimMinHz...Config.aimMaxHz).contains(near.frequencyHz))
     }
+
+    /// The tone pauses only while a sentence plays, so it is heard; a car on one side must not hide the other side's tilt
+    /// (review C1: after "no cars", silence would read as "still no cars").
+    func testToneYieldsToSpeechOnly() {
+        XCTAssertFalse(toneSettings(isLevel: false, tiltErrorDegrees: 30, isSpeaking: true).isOn)
+        XCTAssertTrue(toneSettings(isLevel: false, tiltErrorDegrees: 12, isSpeaking: false).isOn)
+    }
+
+    /// The heading tone follows the worst misaimed side's own compass error, and only beyond the tolerance: crossing
+    /// traffic alone (compass on the road) gives no tone the user can't aim away (review I3).
+    func testHeadingToneOnlyFromMisaimedSidesBeyondTolerance() {
+        XCTAssertNil(misaimHeadingError([.left: .unknown(.misaimed)], headingErrors: [.left: 5]))
+        XCTAssertEqual(misaimHeadingError([.left: .unknown(.misaimed), .right: .unknown(.misaimed)],
+                                          headingErrors: [.left: 30, .right: 40]), 40)
+        XCTAssertNil(misaimHeadingError([.left: .clear], headingErrors: [.left: 50]))
+    }
+
+    /// The tone also guides the phone back to the street heading.
+    func testToneGuidesHeading() {
+        let off = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 40)
+        let near = toneSettings(isLevel: true, tiltErrorDegrees: 0, headingErrorDegrees: 26)
+        XCTAssertTrue(off.isOn)
+        XCTAssertGreaterThan(near.frequencyHz, off.frequencyHz)
+    }
 }
 
 /// Invariant 1: nothing the app says or shows reads as permission to cross.
 final class BannedWordsTests: XCTestCase {
     func testNoSentenceOrLabelSaysGo() throws {
         let reasons: [UnknownReason] = [.stale, .notLevel, .tooDark, .tooBright, .covered, .viewBlocked, .noPermission,
-                                        .unsupported, .interrupted, .overheated, .noRoadSeen]
+                                        .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser, .misaimed, .moving, .turnedAround]
         let arrivals: [Arrival] = [.seconds(0), .seconds(1), .seconds(7), .far, .unmeasured]
         let states: [DirectionState] = [.clear] + reasons.map { .unknown($0) } + arrivals.map { .approaching($0) }
-        var texts = [Strings.paused, Strings.holdInstructions]
+        var texts = [Strings.paused, Strings.holdInstructions, Strings.voiceTip]
         for state in states {
             texts += [Strings.sentence(.left, state), Strings.sentence(.right, state), Strings.label(state)]
         }
@@ -219,6 +259,27 @@ final class BannedWordsTests: XCTestCase {
 /// One sentence at a time: a car is never cut off, more urgent news cuts in, the rest waits (newest per side) and is
 /// said as it is when its turn comes.
 final class SpeechQueueTests: XCTestCase {
+    /// The sideways-hold instructions (+ voice tip) run about 12 s; the 4 s safety net must not cut them off for waiting
+    /// news (review I4).
+    func testLongInstructionsAreNotCutAtFourSeconds() {
+        var q = SpeechQueue()
+        let hold = Utterance(side: nil, text: Strings.holdInstructions + " " + Strings.voiceTip, priority: .car)
+        _ = q.add([hold], atSeconds: 0)
+        XCTAssertNil(q.add([utterance(.left, .unknown(.stale))], atSeconds: 3.2))
+        XCTAssertNil(q.add([], atSeconds: 4.1))
+    }
+
+    /// The tone waits for exactly this: a sentence started and not yet finished.
+    func testIsSpeakingUntilFinished() {
+        var q = SpeechQueue()
+        let u = utterance(.left, .approaching(.seconds(7)))
+        XCTAssertFalse(q.isSpeaking)
+        _ = q.add([u], atSeconds: 0)
+        XCTAssertTrue(q.isSpeaking)
+        _ = q.finished(text: u.text, atSeconds: 1)
+        XCTAssertFalse(q.isSpeaking)
+    }
+
     private let carRight = utterance(.right, .approaching(.seconds(6)))
     private let blockedLeft = utterance(.left, .unknown(.viewBlocked))
 
@@ -303,11 +364,22 @@ final class SpeechQueueTests: XCTestCase {
     /// The status the user asked for covers both sides, so nothing it cut off is repeated after it.
     func testStatusReplacesEverything() {
         var q = SpeechQueue()
-        let status = Utterance(side: nil, text: "Left: blocked. Right: car, 6 seconds", priority: .car)
+        let status = Utterance(side: nil, text: "Left: blocked. Right: car, 6 seconds", priority: .car, replacesQueue: true)
         _ = q.add([carRight], atSeconds: 0)
         XCTAssertNil(q.add([blockedLeft], atSeconds: 0.2))
         XCTAssertEqual(q.add([status], atSeconds: 0.5), status)
         XCTAssertNil(q.finished(text: status.text, atSeconds: 2))
+    }
+
+    /// The hold instructions don't restate the sides: news they cut off or hold up is said after them, cars first.
+    func testHoldInstructionsKeepTheNews() {
+        var q = SpeechQueue()
+        let hold = Utterance(side: nil, text: Strings.holdInstructions, priority: .car)
+        _ = q.add([carRight], atSeconds: 0)
+        XCTAssertNil(q.add([blockedLeft], atSeconds: 0.2))
+        XCTAssertEqual(q.add([hold], atSeconds: 0.5), hold)
+        XCTAssertEqual(q.finished(text: hold.text, atSeconds: 4), carRight)
+        XCTAssertEqual(q.finished(text: carRight.text, atSeconds: 5.5), blockedLeft)
     }
 
     /// If the phone never reports a sentence finished, the next one plays after Config.maxUtteranceSeconds.
@@ -353,6 +425,25 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(highlight(close(), isRed: true), .danger)
         XCTAssertEqual(highlight(parkedBehind, isRed: false), .facing)
         XCTAssertEqual(highlight(trackWithDirection(heightAt: { 0.08 * (1 - 0.06 * $0) }), isRed: false), .away)
+    }
+}
+
+/// Speech uses the best voice installed for the language; the basic one sounds synthetic.
+final class VoiceTests: XCTestCase {
+    private func v(_ id: String, _ q: AVSpeechSynthesisVoiceQuality, lang: String = "en-US", novelty: Bool = false,
+                   personal: Bool = false) -> VoiceInfo {
+        VoiceInfo(identifier: id, language: lang, quality: q, isNovelty: novelty, isPersonal: personal)
+    }
+
+    func testPrefersPremiumOverEnhancedOverDefault() {
+        XCTAssertEqual(bestVoice([v("a", .default), v("b", .premium), v("c", .enhanced)], language: "en-US")?.identifier, "b")
+    }
+
+    func testSkipsNoveltyPersonalAndOtherLanguages() {
+        let voices = [v("n", .premium, novelty: true), v("p", .premium, personal: true), v("f", .premium, lang: "fr-FR"),
+                      v("d", .default)]
+        XCTAssertEqual(bestVoice(voices, language: "en-US")?.identifier, "d")
+        XCTAssertNil(bestVoice([v("f", .premium, lang: "fr-FR")], language: "en-US"))
     }
 }
 

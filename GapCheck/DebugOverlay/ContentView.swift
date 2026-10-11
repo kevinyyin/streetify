@@ -1,10 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one screen. Sighted judges see the two directions stacked (left on top), each with a colored status bar over
-/// its camera; VoiceOver hears one status item. Tapping it speaks the status again. Replay buttons sit below for testers.
+/// The one screen. Sighted judges see the two directions stacked (left on top), or side by side (left first) when the
+/// phone is held sideways, each with a colored status bar over its camera; VoiceOver hears one status item. Tapping it
+/// speaks the status again. Replay buttons sit below for testers.
 struct ContentView: View {
     let model: AppModel
+    /// Compact height = the phone is sideways (the hold since 2026-10-10): the two feeds go side by side.
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isImporting = false
     @State private var importSide: Side = .right
 
@@ -12,8 +15,12 @@ struct ContentView: View {
         VStack(spacing: 12) {
             VStack(spacing: 10) {
                 levelLine
-                section(.left)
-                section(.right)
+                let sections = verticalSizeClass == .compact ? AnyLayout(HStackLayout(spacing: 10))
+                    : AnyLayout(VStackLayout(spacing: 10))
+                sections {
+                    section(.left)
+                    section(.right)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { model.speakStatus() }
@@ -51,6 +58,8 @@ struct ContentView: View {
             } else {
                 Text("Tilted \(Int(model.tiltErrorDegrees.rounded()))°").foregroundStyle(.orange)
             }
+            Text("Motion \(String(format: "%.2f", model.motionG)) g")
+                .foregroundStyle(model.motionG > Config.movingAccelerationG ? .orange : .gray)
             if model.isMuted {
                 Label("Volume off", systemImage: "speaker.slash").foregroundStyle(.orange)
             }
@@ -114,8 +123,8 @@ struct ContentView: View {
 
     /// Each car's outline tinted red (close, or in a close line of cars), yellow (facing us) or green (driving away).
     /// Outlines arrive a frame or two late, so each is carried along with its car to where the car is now. A car with
-    /// no outline gets a box. Red cars get their time to arrival, closest first, skipping any label that would overlap
-    /// one already drawn. Outlines matched to no car (people, cars not tracked yet) are drawn faint gray.
+    /// no outline gets a box. Red cars get their time to arrival, and cars the front/rear model sees from behind get
+    /// "rear" (stage 1 shows it only here), closest first, skipping any label that would overlap one already drawn. Outlines matched to no car (people, cars not tracked yet) are drawn faint gray.
     private func drawTracks(_ tracks: [Track], masks: [SegmentMask], redIds: Set<Int>, atSeconds t: Double, in ctx: GraphicsContext, size: CGSize) {
         // Vision boxes have their origin bottom-left.
         func rect(_ box: CGRect) -> CGRect {
@@ -133,17 +142,18 @@ struct ContentView: View {
             let isRed = redIds.contains(track.id)
             let color = highlight(track, isRed: isRed).color
             let then = masks.first.flatMap { track.box(atSeconds: $0.timestampSeconds) } ?? track.box
-            let mask = unused.filter { iou(masks[$0].box, then) >= 0.3 }.max { iou(masks[$0].box, then) < iou(masks[$1].box, then) }
+            let mask = unused.filter { iou(masks[$0].box, then) >= Config.maskMatchIoU }.max { iou(masks[$0].box, then) < iou(masks[$1].box, then) }
             if let mask {
                 unused.remove(mask)
                 fill(masks[mask], at: carried(masks[mask].box, from: then, to: track.box), color, opacity: 0.55)
             } else {
                 ctx.stroke(Path(rect(track.box)), with: .color(color), lineWidth: 2)
             }
-            guard isRed else { continue }
+            guard isRed || track.isSeenFromBehind else { continue }
             let e = track.estimate(atSeconds: t)
-            let text = ctx.resolve(Text(e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "car")
-                .font(.caption.bold()).foregroundStyle(color))
+            let time = isRed ? e.pointSeconds.map { String(format: "%.1f s", $0) } ?? "car" : nil
+            let words = [time, track.isSeenFromBehind ? "rear" : nil].compactMap { $0 }.joined(separator: "  ")
+            let text = ctx.resolve(Text(words).font(.caption.bold()).foregroundStyle(color))
             let r = rect(track.box), textSize = text.measure(in: size)
             let label = CGRect(x: r.minX, y: r.minY - 2 - textSize.height, width: textSize.width, height: textSize.height)
             guard !labels.contains(where: { $0.intersects(label) }) else { continue }

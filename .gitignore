@@ -6,3 +6,4 @@ DerivedData
 .DS_Store
 .venv
 build/
+*.pth
