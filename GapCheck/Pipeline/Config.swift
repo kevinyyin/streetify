@@ -111,6 +111,8 @@ enum Config {
     static let newCarJumpSeconds = 3.0
     /// A sentence not reported finished after this long counts as done, so the next one can play.
     static let maxUtteranceSeconds = 4.0
+    /// A long sentence gets this many seconds per word instead, so the hold instructions aren't cut off.
+    static let utteranceSecondsPerWord = 0.45
     /// Changes landing this close together are spoken as one sentence (the two cameras run independently).
     static let announceCoalesceSeconds = 0.2
 

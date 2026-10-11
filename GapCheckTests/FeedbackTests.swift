@@ -259,6 +259,16 @@ final class BannedWordsTests: XCTestCase {
 /// One sentence at a time: a car is never cut off, more urgent news cuts in, the rest waits (newest per side) and is
 /// said as it is when its turn comes.
 final class SpeechQueueTests: XCTestCase {
+    /// The sideways-hold instructions (+ voice tip) run about 12 s; the 4 s safety net must not cut them off for waiting
+    /// news (review I4).
+    func testLongInstructionsAreNotCutAtFourSeconds() {
+        var q = SpeechQueue()
+        let hold = Utterance(side: nil, text: Strings.holdInstructions + " " + Strings.voiceTip, priority: .car)
+        _ = q.add([hold], atSeconds: 0)
+        XCTAssertNil(q.add([utterance(.left, .unknown(.stale))], atSeconds: 3.2))
+        XCTAssertNil(q.add([], atSeconds: 4.1))
+    }
+
     /// The tone waits for exactly this: a sentence started and not yet finished.
     func testIsSpeakingUntilFinished() {
         var q = SpeechQueue()

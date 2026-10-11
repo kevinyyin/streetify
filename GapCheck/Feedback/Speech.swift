@@ -14,7 +14,7 @@ struct SpeechQueue {
     /// Adds sentences; returns the one to start now (cutting off the current one), or nil to keep waiting.
     /// `current` is each side's state now; sides missing from it are spoken as queued.
     mutating func add(_ utterances: [Utterance], atSeconds now: Double, current: [Side: DirectionState] = [:]) -> Utterance? {
-        if let s = speaking, now - s.startedSeconds > Config.maxUtteranceSeconds { speaking = nil } // never told it finished
+        if let s = speaking, now - s.startedSeconds > utteranceTimeoutSeconds(s.utterance.text) { speaking = nil } // never told it finished
         for u in utterances {
             pending.removeAll { u.replacesQueue || $0.replacesQueue || $0.side == u.side }
             pending.append(u)
@@ -74,6 +74,12 @@ struct SpeechQueue {
         pending.removeAll { $0.text == u.text }
         return u
     }
+}
+
+/// How long a sentence may go unreported before it counts as done: `Config.maxUtteranceSeconds`, or longer for a long
+/// sentence (the hold instructions run about 7 s, 12 s with the voice tip).
+func utteranceTimeoutSeconds(_ text: String) -> Double {
+    max(Config.maxUtteranceSeconds, Double(text.split(separator: " ").count) * Config.utteranceSecondsPerWord)
 }
 
 /// What picking a voice needs from an installed one.
