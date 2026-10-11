@@ -35,6 +35,14 @@ struct Track {
 
     var isDrivingAway: Bool { travel == .away }
 
+    /// How far the center moved sideways (fraction of the picture width) over the direction window, once that spans
+    /// `Config.historySeconds`: which side of the picture an approaching car heads for, i.e. where the street is.
+    var driftFraction: Double? {
+        guard let first = directionBoxes.first, let last = directionBoxes.last, last.t - first.t >= Config.historySeconds
+        else { return nil }
+        return last.box.midX - first.box.midX
+    }
+
     /// A vehicle sliding across the picture without growing: the camera looks across the road, not along it. Cars
     /// coming along the road grow as they drift sideways; far cross streets and cars right at the curb are excluded
     /// by height.

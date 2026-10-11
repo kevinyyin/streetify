@@ -16,6 +16,9 @@ enum UnknownReason: Equatable {
     case misaimed
     /// Curb only: the phone is moving (the user walks), so box growth says nothing about cars.
     case moving
+    /// Approaching cars drift away from the street's side of the picture: the screen faces right, not left, so every
+    /// "Left" and "Right" would be swapped.
+    case turnedAround
 }
 
 /// How soon an approaching car arrives, as far as can be told.
@@ -61,6 +64,15 @@ final class Decider {
     private var lastApproachSeconds: Double?
     private var lockedHeadingDegrees: Double?
     private var lastCrossingSeconds = -Double.infinity
+    /// Live cameras only: replayed footage was filmed any way round.
+    private let checksTurnAround: Bool
+    /// Approaching cars already judged for the turn-around check, and whether the last few drifted the right way.
+    private var judgedTrackIds = Set<Int>()
+    private var recentDriftsRight: [Bool] = []
+
+    init(checksTurnAround: Bool = false) {
+        self.checksTurnAround = checksTurnAround
+    }
 
     /// Rule 1. Live: the watchdog calls this on host time. Replay: `update` calls it per frame to catch gaps.
     @discardableResult
@@ -107,6 +119,7 @@ final class Decider {
             roadSeenSeconds = t
             if let heading = o.headingDegrees { lockedHeadingDegrees = heading }
         }
+        if checksTurnAround, canJudgeAim { noteDrift(tracks) }
         if let seen = roadSeenSeconds, t - seen > Config.roadEvidenceSeconds {
             roadSeenSeconds = nil
             lockedHeadingDegrees = nil // maybe a new crossing; the next car there locks again
@@ -115,6 +128,17 @@ final class Decider {
             headingErrorDegrees = angleDifferenceDegrees(heading, lock)
         } else {
             headingErrorDegrees = nil
+        }
+    }
+
+    /// Turn-around evidence, once per approaching car: with the screen facing left, the street lies in the left half
+    /// of both pictures (front mirrored by its EXIF orientation), so an approaching car drifts toward smaller x.
+    private func noteDrift(_ tracks: [Track]) {
+        judgedTrackIds.formIntersection(tracks.map(\.id))
+        for track in tracks where track.travel == .toward && !judgedTrackIds.contains(track.id) {
+            guard let drift = track.driftFraction, abs(drift) >= Config.turnedAroundMinDriftFraction else { continue }
+            judgedTrackIds.insert(track.id)
+            recentDriftsRight = Array((recentDriftsRight + [drift < 0]).suffix(Config.turnedAroundMinCars))
         }
     }
 
@@ -144,6 +168,9 @@ final class Decider {
         }
         if (headingErrorDegrees ?? 0) > Config.headingToleranceDegrees || t - lastCrossingSeconds <= Config.misaimMemorySeconds {
             return .unknown(.misaimed)
+        }
+        if checksTurnAround, recentDriftsRight.count == Config.turnedAroundMinCars, !recentDriftsRight.contains(true) {
+            return .unknown(.turnedAround)
         }
 
         // Every remaining track is stationary or leaving; people hide the road too.

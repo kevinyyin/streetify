@@ -229,7 +229,7 @@ final class FeedbackTests: XCTestCase {
 final class BannedWordsTests: XCTestCase {
     func testNoSentenceOrLabelSaysGo() throws {
         let reasons: [UnknownReason] = [.stale, .notLevel, .tooDark, .tooBright, .covered, .viewBlocked, .noPermission,
-                                        .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser, .misaimed, .moving]
+                                        .unsupported, .interrupted, .overheated, .noRoadSeen, .facingUser, .misaimed, .moving, .turnedAround]
         let arrivals: [Arrival] = [.seconds(0), .seconds(1), .seconds(7), .far, .unmeasured]
         let states: [DirectionState] = [.clear] + reasons.map { .unknown($0) } + arrivals.map { .approaching($0) }
         var texts = [Strings.paused, Strings.holdInstructions]

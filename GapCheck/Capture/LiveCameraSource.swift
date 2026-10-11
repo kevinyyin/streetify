@@ -53,6 +53,12 @@ final class LiveCameraSource: NSObject, FrameSource, AVCaptureVideoDataOutputSam
         let connection = AVCaptureConnection(inputPorts: [port], output: output)
         guard session.canAddConnection(connection) else { throw CaptureError.cannotAdd }
         session.addConnection(connection)
+        if position == .front {
+            // Unmirrored buffers, so the front image Vision sees is mirrored only by its `…Mirrored` EXIF orientation.
+            // Then the street lies in the left half of both cameras' pictures (Decide's turn-around check).
+            connection.automaticallyAdjustsVideoMirroring = false
+            if connection.isVideoMirroringSupported { connection.isVideoMirrored = false }
+        }
     }
 
     func start() { queue.async { self.isRunning = true } }

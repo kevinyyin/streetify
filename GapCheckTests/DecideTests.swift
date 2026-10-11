@@ -231,6 +231,43 @@ final class DecideTests: XCTestCase {
         XCTAssertEqual(leaving.travel, .away)
         if case .approaching = seen().update(obs(4), tracks: [leaving]) { XCTFail("a leaving car is not coming") }
     }
+
+    /// Coming along the road (growing), its center drifting `drift` of the picture width over the 4 s window.
+    private func comingCar(id: Int, drift: Double) -> Track {
+        trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }, xAt: { 0.5 + drift * $0 / 4 }, id: id)
+    }
+
+    /// Approaching cars drift toward the street's side, the left half of both pictures; two drifting right in a row
+    /// mean the phone is held the other way round.
+    func testTwoCarsDriftingTheWrongWayIsTurnedAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(4), tracks: [comingCar(id: 1, drift: 0.1)])
+        XCTAssertEqual(feed(d, from: 4.1, through: 6, tracks: [comingCar(id: 2, drift: 0.1)]), .unknown(.turnedAround))
+    }
+
+    func testOneRightCarClearsTurnedAround() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        _ = d.update(obs(4), tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)])
+        _ = d.update(obs(4.1), tracks: [comingCar(id: 3, drift: -0.1)])
+        XCTAssertNotEqual(feed(d, from: 4.2, through: 6), .unknown(.turnedAround))
+    }
+
+    /// Replayed footage was filmed any way round, so it never says "Turn the phone around".
+    func testReplayNeverTurnedAround() {
+        let d = seen()
+        XCTAssertNotEqual(feed(d, from: 4, through: 6, tracks: [comingCar(id: 1, drift: 0.1), comingCar(id: 2, drift: 0.1)]),
+                          .unknown(.turnedAround))
+    }
+
+    /// A parked car sliding sideways (the hand turning) is no evidence of which way the street lies.
+    func testDriftOfANonApproachingCarDoesNotCount() {
+        let d = Decider(checksTurnAround: true)
+        d.roadSeenSeconds = 0
+        let parked = { (id: Int) in trackWithDirection(heightAt: { _ in 0.1 }, xAt: { 0.5 + 0.1 * $0 / 4 }, id: id) }
+        XCTAssertNotEqual(feed(d, from: 4, through: 6, tracks: [parked(1), parked(2)]), .unknown(.turnedAround))
+    }
 }
 
 /// The live watchdog runs on main from host arrival times, so a hung pipeline or an ended replay still goes stale.

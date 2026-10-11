@@ -61,12 +61,13 @@ func makeTrack(_ heights: [(t: Double, h: Double)], box: CGRect? = nil, id: Int 
 
 func car(_ box: CGRect) -> Detection { Detection(box: box, label: "car", confidence: 0.9) }
 
-/// A track whose direction window (4 s at the processing rate) follows `heightAt(seconds)`, centered and not sliding.
-func trackWithDirection(heightAt: (Double) -> Double, id: Int = 1) -> Track {
+/// A track whose direction window (4 s at the processing rate) follows `heightAt(seconds)`, its center at `xAt(seconds)`
+/// (centered and not sliding by default).
+func trackWithDirection(heightAt: (Double) -> Double, xAt: (Double) -> Double = { _ in 0.5 }, id: Int = 1) -> Track {
     var track = makeTrack(parkedHeights(height: heightAt(4), noisePixels: 0, seed: 1), id: id)
     track.directionBoxes = (0...40).map { i in
         let t = Double(i) / Config.processFps, h = heightAt(t)
-        return (t, CGRect(x: 0.5 - h, y: 0.4, width: 2 * h, height: h))
+        return (t, CGRect(x: xAt(t) - h, y: 0.4, width: 2 * h, height: h))
     }
     return track
 }
