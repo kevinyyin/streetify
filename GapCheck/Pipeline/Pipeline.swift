@@ -19,6 +19,8 @@ struct PipelineUpdate {
     let detections: [Detection]
     let tracks: [Track]
     let state: DirectionState
+    /// Compass error from the locked street heading, for the tone.
+    var headingErrorDegrees: Double? = nil
 }
 
 /// Source → Detect → Track → Decide for one camera on its own serial queue. Shares no state with the other pipeline.
@@ -56,8 +58,10 @@ final class Pipeline {
         let observation = FrameObservation(timestampSeconds: frame.timestampSeconds, isLevel: frame.isLevel,
                                            quality: imageQuality(frame.pixelBuffer), tile: frameTileRect(frame),
                                            blockerBoxes: found.filter { Config.blockerLabels.contains($0.label) }.map(\.box),
-                                           faceBoxes: found.filter { $0.label == Config.faceLabel }.map(\.box))
+                                           faceBoxes: found.filter { $0.label == Config.faceLabel }.map(\.box),
+                                           headingDegrees: frame.headingDegrees)
         let state = decider.update(observation, tracks: tracks)
-        onUpdate?(PipelineUpdate(side: side, frame: frame, detections: detections, tracks: tracks, state: state))
+        onUpdate?(PipelineUpdate(side: side, frame: frame, detections: detections, tracks: tracks, state: state,
+                                 headingErrorDegrees: decider.headingErrorDegrees))
     }
 }

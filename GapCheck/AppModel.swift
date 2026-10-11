@@ -54,6 +54,8 @@ final class AppModel {
     @ObservationIgnored private var isAnnouncementScheduled = false
     /// False until a frame has reported the tilt; before that (or with no camera, as in the simulator) the tone is silent.
     @ObservationIgnored private var hasLevelReading = false
+    /// The compass's distance from the street heading, for the tone while a side is misaimed.
+    @ObservationIgnored private var headingErrorDegrees: Double?
     @ObservationIgnored private var lastUpdateSeconds: [Side: Double] = [:]
     @ObservationIgnored private var watchdog: Timer?
     @ObservationIgnored private var grace: DispatchWorkItem?
@@ -79,7 +81,12 @@ final class AppModel {
             speakHoldInstructions()
         }
         motion.deviceMotionUpdateInterval = 1.0 / 30
-        motion.startDeviceMotionUpdates()
+        // The magnetic frame adds the compass for the heading check; without a magnetometer, level still works.
+        if CMMotionManager.availableAttitudeReferenceFrames().contains(.xMagneticNorthZVertical) {
+            motion.startDeviceMotionUpdates(using: .xMagneticNorthZVertical)
+        } else {
+            motion.startDeviceMotionUpdates()
+        }
         observeCaptureSession()
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
@@ -292,6 +299,7 @@ final class AppModel {
                 self.isLevel = frame.isLevel
                 self.hasLevelReading = true
                 self.tiltErrorDegrees = frame.tiltErrorDegrees
+                self.headingErrorDegrees = update.headingErrorDegrees
             }
             self.updateTone()
             self.scheduleAnnouncement()
@@ -315,7 +323,9 @@ final class AppModel {
 
     private func updateTone() {
         guard hasLevelReading, !isPaused else { return tone.apply(ToneSettings(isOn: false, frequencyHz: 0)) }
-        tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees))
+        let isMisaimed = panes.values.contains { $0.state == .unknown(.misaimed) }
+        tone.apply(toneSettings(isLevel: isLevel, tiltErrorDegrees: tiltErrorDegrees,
+                                headingErrorDegrees: isMisaimed ? headingErrorDegrees : nil))
     }
 
     /// After the grace period, a side still stale was never announced (it started that way, or came back from a

@@ -20,6 +20,7 @@ Time to arrival = box height / change in height per second. Height, because hand
 3. Flat (low Laplacian variance) and not overexposed: `covered`; else too dark or too bright: Unknown with that reason.
 4. Any track arriving within `Config.approachWindowSeconds` (start 20 s), or too new to measure: Approaching, with the smallest time or "far".
 5. Front camera only: faces covering at least `Config.faceMinAreaFraction` (0.05) of the picture: Unknown `facingUser` ("Turn the screen away from you"); the road evidence is dropped (from `feature-fixing`, 2026-10-10).
+5a. Misaimed (from `feature-fixing`, 2026-10-10): the compass is more than `Config.headingToleranceDegrees` (25°) off the street heading, or a car crossed the view (slid at least 1 box width per second without growing, 5–30% of the picture tall) within `Config.misaimMemorySeconds` (10 s): Unknown `misaimed` ("Turn the phone back toward the road"). The heading locks whenever a vehicle travels along the camera axis on a level frame; an uncalibrated compass gives no heading and no compass check. Crossing traffic counts only from level frames and drops the road evidence.
 5b. Stationary vehicle covering over `Config.blockedFraction` of the center tile: Unknown `viewBlocked`.
 6. No moving vehicle (growing or shrinking over `Config.directionWindowSeconds`) seen in `Config.roadEvidenceSeconds`: Unknown `noRoadSeen`. Clear means "road seen and empty", not "nothing detected".
 7. Clear once rules 1 to 6 haven't fired for `Config.clearHoldSeconds` (start 1.5 s). Until then, keep the previous state.

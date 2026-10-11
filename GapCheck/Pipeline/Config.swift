@@ -60,6 +60,23 @@ enum Config {
     /// While tilted, a car seen this recently is still reported ("car", no time).
     static let tiltCarMemorySeconds = 1.0
 
+    /// A car sliding sideways at least this many box widths per second without growing crosses the view: misaimed.
+    static let misaimSidewaysBoxWidthsPerSecond = 1.0
+    /// Seconds of a track's boxes needed before it can count as crossing.
+    static let misaimMinSeconds = 0.5
+    /// A crossing car changes height by at most this fraction over that time; an approaching one grows.
+    static let misaimMaxGrowthFraction = 0.2
+    /// Crossing cars are at least this tall (fraction of the picture), so a far cross street doesn't count.
+    static let misaimMinHeightFraction = 0.05
+    /// And at most this tall, so a car passing right at the curb doesn't count.
+    static let misaimMaxHeightFraction = 0.3
+    /// After crossing traffic is seen, the side reads misaimed this long.
+    static let misaimMemorySeconds = 10.0
+    /// The compass may drift this far from the locked street heading before the side reads misaimed.
+    static let headingToleranceDegrees = 25.0
+    /// The camera axis's horizontal part below this (pointing steeply up or down) gives no heading.
+    static let headingMinHorizontalFraction = 0.5
+
     /// The tone (only while not level): low pitch at this tilt or more, rising to aimMaxHz near level.
     static let aimMaxErrorDegrees = 45.0
     static let aimMinHz = 200.0

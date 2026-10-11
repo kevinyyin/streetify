@@ -36,6 +36,21 @@ final class LevelTests: XCTestCase {
         XCTAssertEqual(a.tiltErrorDegrees, 5, accuracy: 0.01)
     }
 
+    /// Upright portrait, dip 60°: back camera looking east reads 90°, looking north reads 0°.
+    func testCameraHeadingFromGravityAndField() throws {
+        let c = cos(rad(60)), s = sin(rad(60))
+        let east = try XCTUnwrap(cameraHeadingDegrees(gravity: (0, -1, 0), field: (-c, -s, 0)))
+        XCTAssertEqual(east, 90, accuracy: 1e-6)
+        let north = try XCTUnwrap(cameraHeadingDegrees(gravity: (0, -1, 0), field: (0, -s, -c)))
+        XCTAssertEqual(north, 0, accuracy: 1e-6)
+        XCTAssertNil(cameraHeadingDegrees(gravity: (0, 0, -1), field: (0, c, -s)), "camera pointing at the ground")
+    }
+
+    func testAngleDifferenceWraps() {
+        XCTAssertEqual(angleDifferenceDegrees(350, 10), 20, accuracy: 1e-9)
+        XCTAssertEqual(angleDifferenceDegrees(90, 270), 180, accuracy: 1e-9)
+    }
+
     func testExifOrientation() {
         XCTAssertEqual(exifOrientation(hold: .portrait, position: .back), .right)
         XCTAssertEqual(exifOrientation(hold: .portrait, position: .front), .leftMirrored)

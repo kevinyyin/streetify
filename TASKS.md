@@ -57,7 +57,7 @@
 ## Field test fixes (2026-10-10)
 Spec: docs/superpowers/specs/2026-10-10-field-test-fixes-design.md; plan: docs/superpowers/plans/2026-10-10-field-test-fixes.md
 - [x] Face check: "Turn the screen away from you" (from feature-fixing) (not verified on device)
-- [ ] Misaimed: crossing traffic or compass off the street heading (from feature-fixing)
+- [x] Misaimed: crossing traffic or compass off the street heading (from feature-fixing) (compass not verified on device)
 - [ ] Curb only: the phone moving says "Hold still" and judges no cars
 - [ ] Cars driving away no longer count as approaching
 - [ ] A tilted phone still reports cars; the tone yields to them

@@ -35,6 +35,19 @@ struct Track {
 
     var isDrivingAway: Bool { travel == .away }
 
+    /// A vehicle sliding across the picture without growing: the camera looks across the road, not along it. Cars
+    /// coming along the road grow as they drift sideways; far cross streets and cars right at the curb are excluded
+    /// by height.
+    var isCrossingView: Bool {
+        guard let first = directionBoxes.first, let last = directionBoxes.last else { return false }
+        let seconds = last.t - first.t
+        guard seconds >= Config.misaimMinSeconds, first.box.height > 0,
+              last.box.height >= Config.misaimMinHeightFraction, last.box.height <= Config.misaimMaxHeightFraction,
+              abs(last.box.height / first.box.height - 1) <= Config.misaimMaxGrowthFraction else { return false }
+        let sideways = abs(last.box.midX - first.box.midX) / max(last.box.width, 1e-6) / seconds
+        return sideways >= Config.misaimSidewaysBoxWidthsPerSecond
+    }
+
     /// At a standstill: over at least `Config.historySeconds`, neither growing nor shrinking for sure, and its center
     /// moved less than `Config.stillMaxBoxWidthsPerSecond` box widths per second. Display only.
     var isStill: Bool {

@@ -88,4 +88,15 @@ final class TrackTests: XCTestCase {
         XCTAssertNotEqual(b[0].id, a[0].id)
         XCTAssertTrue(b[0].estimate(atSeconds: 0.1).isTooNew)
     }
+
+    /// Sliding across the picture without growing reads as crossing; coming along the road (growing) does not.
+    func testCrossingView() {
+        var crossing = makeTrack(parkedHeights(height: 0.1, noisePixels: 0, seed: 1))
+        crossing.directionBoxes = (0...10).map { i in
+            let t = Double(i) / 10
+            return (t, CGRect(x: 0.1 + 0.4 * t, y: 0.45, width: 0.2, height: 0.1))
+        }
+        XCTAssertTrue(crossing.isCrossingView)
+        XCTAssertFalse(trackWithDirection(heightAt: { 0.05 * (1 + 0.2 * $0) }).isCrossingView)
+    }
 }

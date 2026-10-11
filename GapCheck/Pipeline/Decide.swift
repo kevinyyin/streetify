@@ -12,6 +12,8 @@ enum UnknownReason: Equatable {
     case noRoadSeen
     /// The front camera sees the user's face: the screen faces them, not down the road.
     case facingUser
+    /// The phone turned off the street heading (compass), or cars cross the picture instead of coming along it.
+    case misaimed
 }
 
 /// How soon an approaching car arrives, as far as can be told.
@@ -39,16 +41,22 @@ struct FrameObservation {
     var blockerBoxes: [CGRect] = []
     /// Faces the front camera sees, Vision-normalized; always empty for the back camera.
     var faceBoxes: [CGRect] = []
+    /// Compass heading of the camera axis; nil without a calibrated compass, and in replay.
+    var headingDegrees: Double? = nil
 }
 
 /// The ordered rules for one direction. Starts Unknown; every failure ends Unknown, never Clear.
 final class Decider {
     private(set) var state: DirectionState = .unknown(.stale)
+    /// How far the compass is from the locked street heading, for the tone; nil when unlocked or without a compass.
+    private(set) var headingErrorDegrees: Double?
     /// Frame time a moving vehicle last showed this camera sees a road. Internal so tests can start with a road seen.
     var roadSeenSeconds: Double?
     private var lastFrameSeconds: Double?
     private var lastFiredSeconds = -Double.infinity
     private var lastApproachSeconds: Double?
+    private var lockedHeadingDegrees: Double?
+    private var lastCrossingSeconds = -Double.infinity
 
     /// Rule 1. Live: the watchdog calls this on host time. Replay: `update` calls it per frame to catch gaps.
     @discardableResult
@@ -73,9 +81,7 @@ final class Decider {
         if lastFrameSeconds == nil { lastFiredSeconds = t } // having had no frames counts as rule 1 firing
         checkStale(nowSeconds: t)
         lastFrameSeconds = t
-        // Road evidence: a vehicle growing or shrinking travels along the camera axis, so this camera sees a road.
-        if o.isLevel, tracks.contains(where: { $0.travel != .unclear }) { roadSeenSeconds = t }
-        if let seen = roadSeenSeconds, t - seen > Config.roadEvidenceSeconds { roadSeenSeconds = nil }
+        noteAim(o, tracks)
         if let fired = firstFiringRule(o, tracks) {
             state = fired
             lastFiredSeconds = t
@@ -83,6 +89,28 @@ final class Decider {
             state = .clear
         }
         return state
+    }
+
+    /// Road evidence, the street heading and crossing traffic, before the rules read them.
+    private func noteAim(_ o: FrameObservation, _ tracks: [Track]) {
+        let t = o.timestampSeconds
+        if o.isLevel, tracks.contains(where: \.isCrossingView) {
+            lastCrossingSeconds = t
+            roadSeenSeconds = nil // it was looking across the road, not along it
+        } else if o.isLevel, tracks.contains(where: { $0.travel != .unclear }) {
+            // A vehicle growing or shrinking travels along the camera axis: this is the road, and this the heading.
+            roadSeenSeconds = t
+            if let heading = o.headingDegrees { lockedHeadingDegrees = heading }
+        }
+        if let seen = roadSeenSeconds, t - seen > Config.roadEvidenceSeconds {
+            roadSeenSeconds = nil
+            lockedHeadingDegrees = nil // maybe a new crossing; the next car there locks again
+        }
+        if let lock = lockedHeadingDegrees, let heading = o.headingDegrees {
+            headingErrorDegrees = angleDifferenceDegrees(heading, lock)
+        } else {
+            headingErrorDegrees = nil
+        }
     }
 
     private func firstFiringRule(_ o: FrameObservation, _ tracks: [Track]) -> DirectionState? {
@@ -111,6 +139,9 @@ final class Decider {
         if o.faceBoxes.reduce(0.0, { $0 + $1.width * $1.height }) >= Config.faceMinAreaFraction {
             roadSeenSeconds = nil
             return .unknown(.facingUser)
+        }
+        if (headingErrorDegrees ?? 0) > Config.headingToleranceDegrees || t - lastCrossingSeconds <= Config.misaimMemorySeconds {
+            return .unknown(.misaimed)
         }
 
         // Every remaining track is stationary or leaving; people hide the road too.
