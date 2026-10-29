@@ -53,7 +53,7 @@ flowchart LR
 - **Decide:** The first of 11 ordered rules that fires wins: stale frames → phone moving → covered/dark/bright → approaching → not level → facing the user → misaimed → turned around → view blocked → no road seen → Clear (after a 1.5 s hold). Every threshold lives in one place, [`Config.swift`](GapCheck/Pipeline/Config.swift), with a one-line comment.
 - **Feedback:** Each output channel has one job. The tone means "not aimed right", the speech queue is ordered by urgency (a close car outranks a car, which outranks a problem, which outranks "no cars"), and stale queued sentences are rebuilt from current state, so a car that has already passed is never announced late. With VoiceOver on, speech goes through VoiceOver announcements, so two voices never talk at once.
 
-### Debug screen (for sighted judges)
+### Debug screen (for sighted viewers)
 A side-by-side view of both feeds, with YOLO11n-seg outlines tinted by threat (red = arriving soon, yellow = facing us, green = driving away) and a ConvNeXt front/rear orientation classifier, converted to CoreML from the [CFV model](https://github.com/fort-cyber/car-orientation). These models load only while the screen is visible, so they never cost a VoiceOver user battery or heat.
 
 ## Tech stack
@@ -89,11 +89,11 @@ GapCheck/
   Capture/       FrameSource protocol, live multi-cam source, video replay source, level gate
   Pipeline/      Detect, Track, Decide, Config, orientation model
   Feedback/      Haptics, tone, speech queue, all user-facing strings
-  DebugOverlay/  Visual screen for sighted judges, segmentation outlines
+  DebugOverlay/  Visual screen for sighted viewers, segmentation outlines
   AppModel.swift Session lifecycle, camera faults, wiring
 GapCheckTests/   Unit, clip and footage tests
 tools/           CoreML export script for the orientation model
-docs/            Design specs and implementation plans
+docs/            App icon source
 ```
 
 ## Build and run
@@ -129,4 +129,4 @@ This is a prototype. It has been through one on-device field test. That test led
 
 ## Team
 
-Kevin Yin · Nathan Tien · Eric
+Kevin Yin · Nathan Tien · Eric Wang

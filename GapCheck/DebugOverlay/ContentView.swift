@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The one screen. Sighted judges see the two directions stacked (left on top), or side by side (left first) when the
+/// The one screen. Sighted viewers see the two directions stacked (left on top), or side by side (left first) when the
 /// phone is held sideways, each with a colored status bar over its camera; VoiceOver hears one status item. Tapping it
 /// speaks the status again. Replay buttons sit below for testers.
 struct ContentView: View {
@@ -171,7 +171,7 @@ func showsReplayControls(arguments: [String]) -> Bool {
 }
 
 /// The camera preview costs processing the warnings could use; with VoiceOver on nobody sees it, so it is off
-/// unless launched with `-showOverlay` (for a sighted judge beside a VoiceOver user).
+/// unless launched with `-showOverlay` (for a sighted viewer beside a VoiceOver user).
 func showsPreview(voiceOverRunning: Bool, arguments: [String]) -> Bool {
     !voiceOverRunning || arguments.contains("-showOverlay")
 }
